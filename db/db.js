@@ -73,8 +73,66 @@ db.serialize(() => {
       FOREIGN KEY (planId) REFERENCES recurring_plans(id)
     )
   `);
+  db.run(`
+    CREATE TABLE IF NOT EXISTS discounts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      discountName TEXT NOT NULL,
+      type TEXT CHECK(type IN ('FIXED', 'PERCENTAGE')) NOT NULL,
+      value REAL NOT NULL,
+      minimumPurchase REAL DEFAULT 0,
+      minimumQuantity INTEGER DEFAULT 0,
+      startDate DATE,
+      endDate DATE,
+      limitUsage INTEGER,
+      usedCount INTEGER DEFAULT 0,
+      appliesTo TEXT CHECK(appliesTo IN ('PRODUCT', 'SUBSCRIPTION')) NOT NULL,
+      productId INTEGER,
+      subscriptionId INTEGER
+    )
+  `);
+  db.run(`
+    CREATE TABLE IF NOT EXISTS taxes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      taxName TEXT NOT NULL,
+      taxType TEXT CHECK(taxType IN ('PERCENTAGE', 'FIXED')) NOT NULL,
+      rate REAL NOT NULL,
+      isActive INTEGER DEFAULT 1
+    )
+  `);
+  db.run(`
+    CREATE TABLE IF NOT EXISTS invoice_item_taxes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoiceItemId INTEGER,
+      taxId INTEGER,
+      taxAmount REAL,
+      FOREIGN KEY (invoiceItemId) REFERENCES invoice_items(id),
+      FOREIGN KEY (taxId) REFERENCES taxes(id)
+    )
+  `);
+  db.run(`
+    CREATE TABLE IF NOT EXISTS product_taxes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      productId INTEGER NOT NULL,
+      taxId INTEGER NOT NULL,
+      FOREIGN KEY (productId) REFERENCES products(id),
+      FOREIGN KEY (taxId) REFERENCES taxes(id),
+      UNIQUE(productId, taxId)
+    )
+  `);
 
-  
+  db.run(`
+    CREATE TABLE IF NOT EXISTS invoices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoiceNumber TEXT UNIQUE,
+      customerId INTEGER,
+      subscriptionId INTEGER,
+      status TEXT DEFAULT 'DRAFT',
+      subtotal REAL DEFAULT 0,
+      tax REAL DEFAULT 0,
+      total REAL DEFAULT 0,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 });
 
 module.exports = db;

@@ -1,21 +1,19 @@
 const db = require("../../db/db");
 
-// CREATE INVOICE FROM SUBSCRIPTION (AUTO)
 exports.createInvoice = (req, res) => {
   const { subscriptionId, customerId, items } = req.body;
-
   const invoiceNumber = "INV-" + Date.now();
 
   db.run(
     `INSERT INTO invoices (invoiceNumber, customerId, subscriptionId)
      VALUES (?, ?, ?)`,
-
     [invoiceNumber, customerId, subscriptionId],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
 
       const invoiceId = this.lastID;
       let subtotal = 0;
+      let totalTax = 0;
 
       const stmt = db.prepare(`
         INSERT INTO invoice_items
@@ -26,28 +24,72 @@ exports.createInvoice = (req, res) => {
       items.forEach(item => {
         const amount = item.quantity * item.unitPrice;
         subtotal += amount;
-        stmt.run(invoiceId, item.productName, item.quantity, item.unitPrice, amount);
+
+        stmt.run(
+          invoiceId,
+          item.productName,
+          item.quantity,
+          item.unitPrice,
+          amount,
+          function () {
+            const invoiceItemId = this.lastID;
+
+            // 🔹 FETCH TAXES FOR THIS PRODUCT
+            db.all(
+              `SELECT t.*
+               FROM taxes t
+               JOIN product_taxes pt ON t.id = pt.taxId
+               WHERE pt.productId = ? AND t.isActive = 1`,
+              [item.productId],
+              (err, taxes) => {
+                if (err) return;
+
+                taxes.forEach(tax => {
+                  let taxAmount = 0;
+
+                  if (tax.taxType === "PERCENTAGE") {
+                    taxAmount = (amount * tax.rate) / 100;
+                  } else {
+                    taxAmount = tax.rate;
+                  }
+
+                  totalTax += taxAmount;
+
+                  db.run(
+                    `INSERT INTO invoice_item_taxes
+                     (invoiceItemId, taxId, taxAmount)
+                     VALUES (?, ?, ?)`,
+                    [invoiceItemId, tax.id, taxAmount]
+                  );
+                });
+              }
+            );
+          }
+        );
       });
 
       stmt.finalize(() => {
-        const tax = subtotal * 0.18; // example 18% GST
-        const total = subtotal + tax;
+        const total = subtotal + totalTax;
 
         db.run(
           `UPDATE invoices SET subtotal=?, tax=?, total=? WHERE id=?`,
-          [subtotal, tax, total, invoiceId]
+          [subtotal, totalTax, total, invoiceId],
+          () => {
+            res.status(201).json({
+              message: "Invoice created with product-based tax",
+              invoiceId,
+              invoiceNumber,
+              subtotal,
+              tax: totalTax,
+              total
+            });
+          }
         );
-
-        res.status(201).json({
-          message: "Invoice created",
-          invoiceId,
-          invoiceNumber,
-          total
-        });
       });
     }
   );
 };
+
 
 // GET ALL INVOICES
 exports.getInvoices = (req, res) => {
