@@ -1,16 +1,31 @@
-const sqlite3 = require("sqlite3").verbose();
-const path = require("path");
+import sqlite3 from "sqlite3";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const db = new sqlite3.Database(
   path.join(__dirname, "../database.sqlite"),
-  (err) => {
-    if (err) console.error(err.message);
-    else console.log("SQLite connected");
-  }
+  () => console.log("SQLite connected")
 );
-
 // CREATE TABLES
 db.serialize(() => {
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      email TEXT UNIQUE,
+      password TEXT,
+      otp TEXT,
+      phone INTEGER,
+      location TEXT,
+      about TEXT,
+      isVerified INTEGER DEFAULT 0
+    )
+  `);
+
   db.run(`
     CREATE TABLE IF NOT EXISTS products (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,4 +68,4 @@ db.serialize(() => {
   `);
 });
 
-module.exports = db;
+export default db;
