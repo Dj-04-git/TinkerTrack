@@ -4,58 +4,89 @@ const { v4: uuidv4 } = require("uuid");
 // CREATE SUBSCRIPTION (Draft)
 exports.createSubscription = (req, res) => {
   const {
+    userId,
     customerName,
     planId,
     startDate,
     endDate,
     paymentTerms,
-    items
+    items,
+    discountCode,
+    discountAmount
   } = req.body;
 
-  const subscriptionNumber = "SUB-" + Date.now();
+  // Generate subscription number like S-0001
+  db.get(`SELECT COUNT(*) as count FROM subscriptions`, [], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
 
-  db.run(
-    `INSERT INTO subscriptions 
-     (subscriptionNumber, customerName, planId, startDate, endDate, paymentTerms, status)
-     VALUES (?, ?, ?, ?, ?, ?, 'Draft')`,
-    [
-      subscriptionNumber,
-      customerName,
-      planId,
-      startDate,
-      endDate,
-      paymentTerms
-    ],
-    function (err) {
-      if (err) return res.status(500).json({ error: err.message });
+    const count = (row?.count || 0) + 1;
+    const subscriptionNumber = `S-${String(count).padStart(4, '0')}`;
 
-      const subscriptionId = this.lastID;
+    // Calculate totals
+    let subtotal = 0;
+    let totalTax = 0;
+    items.forEach(item => {
+      subtotal += item.unitPrice * item.quantity;
+      totalTax += item.tax || 0;
+    });
 
-      const stmt = db.prepare(`
-        INSERT INTO subscription_items
-        (subscriptionId, productId, quantity, unitPrice, tax, amount)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
+    const discount = discountAmount || 0;
+    const total = subtotal - discount + totalTax;
 
-      items.forEach(item => {
-        stmt.run(
+    db.run(
+      `INSERT INTO subscriptions 
+       (subscriptionNumber, userId, customerName, planId, startDate, endDate, paymentTerms, discountCode, discountAmount, subtotal, tax, total, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Paid')`,
+      [
+        subscriptionNumber,
+        userId || 1,
+        customerName,
+        planId,
+        startDate,
+        endDate,
+        paymentTerms,
+        discountCode || null,
+        discount,
+        subtotal,
+        totalTax,
+        total
+      ],
+      function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+
+        const subscriptionId = this.lastID;
+
+        const stmt = db.prepare(`
+          INSERT INTO subscription_items
+          (subscriptionId, productId, quantity, unitPrice, tax, amount)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `);
+
+        items.forEach(item => {
+          stmt.run(
+            subscriptionId,
+            item.productId,
+            item.quantity,
+            item.unitPrice,
+            item.tax,
+            item.amount
+          );
+        });
+
+        stmt.finalize();
+
+        res.status(201).json({
+          message: "Subscription created",
           subscriptionId,
-          item.productId,
-          item.quantity,
-          item.unitPrice,
-          item.tax,
-          item.amount
-        );
-      });
-
-      stmt.finalize();
-
-      res.status(201).json({
-        message: "Subscription created (Draft)",
-        subscriptionNumber
-      });
-    }
-  );
+          subscriptionNumber,
+          subtotal,
+          tax: totalTax,
+          discountAmount: discount,
+          total
+        });
+      }
+    );
+  });
 };
 
 // UPDATE STATUS
@@ -63,7 +94,7 @@ exports.updateSubscriptionStatus = (req, res) => {
   const { subscriptionId } = req.params;
   const { status } = req.body;
 
-  const allowed = ["Draft", "Quotation", "Confirmed", "Active", "Closed"];
+  const allowed = ["Draft", "Quotation", "Confirmed", "Active", "Closed", "Paid", "Pending"];
   if (!allowed.includes(status)) {
     return res.status(400).json({ message: "Invalid status" });
   }
@@ -79,11 +110,56 @@ exports.updateSubscriptionStatus = (req, res) => {
   );
 };
 
-// GET SUBSCRIPTIONS
+// GET SUBSCRIPTIONS with first product name
 exports.getSubscriptions = (req, res) => {
-  db.all(`SELECT * FROM subscriptions`, [], (err, rows) => {
+  const { userId } = req.query;
+  
+  let query = `
+    SELECT s.*, 
+      (SELECT GROUP_CONCAT(p.productName, ', ') 
+       FROM subscription_items si 
+       LEFT JOIN products p ON si.productId = p.id 
+       WHERE si.subscriptionId = s.id) as productNames
+    FROM subscriptions s
+  `;
+  let params = [];
+  
+  if (userId) {
+    query += ` WHERE s.userId = ?`;
+    params.push(userId);
+  }
+  
+  query += ` ORDER BY s.createdAt DESC`;
+
+  db.all(query, params, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
+  });
+};
+
+// GET SUBSCRIPTION BY ID with items
+exports.getSubscriptionById = (req, res) => {
+  const { subscriptionId } = req.params;
+
+  db.get(`SELECT * FROM subscriptions WHERE id = ? OR subscriptionNumber = ?`, [subscriptionId, subscriptionId], (err, subscription) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!subscription) return res.status(404).json({ error: "Subscription not found" });
+
+    db.all(
+      `SELECT si.*, p.productName 
+       FROM subscription_items si 
+       LEFT JOIN products p ON si.productId = p.id 
+       WHERE si.subscriptionId = ?`,
+      [subscription.id],
+      (err, items) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        res.json({
+          ...subscription,
+          items
+        });
+      }
+    );
   });
 };
 

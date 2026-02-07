@@ -1,0 +1,403 @@
+---
+export const prerender = false;
+import Layout from '../../layouts/Layout.astro';
+
+const { id } = Astro.params;
+
+const session = Astro.locals?.session ?? {};
+const isLoggedIn = Boolean(session.isLoggedIn);
+
+// Fetch product, plans, and variants from backend API
+let product = null;
+let plans = [];
+let variants = [];
+let error = null;
+
+try {
+	const [productRes, plansRes, variantsRes] = await Promise.all([
+		fetch(`http://localhost:3000/products/${id}`),
+		fetch(`http://localhost:3000/products/${id}/plans`),
+		fetch(`http://localhost:3000/products/${id}/variants`)
+	]);
+
+	if (productRes.ok) {
+		product = await productRes.json();
+	} else {
+		error = 'Product not found';
+	}
+
+	if (plansRes.ok) {
+		plans = await plansRes.json();
+	}
+
+	if (variantsRes.ok) {
+		variants = await variantsRes.json();
+	}
+} catch (e) {
+	error = 'Unable to connect to the server';
+}
+---
+
+<Layout title={`TinkerTrack • ${product?.productName ?? 'Product'}`} isLoggedIn={isLoggedIn}>
+	<section class="relative overflow-hidden">
+		<div class="pointer-events-none absolute inset-0">
+			<div class="absolute -top-24 left-10 h-72 w-72 rounded-full bg-primary/20 blur-3xl"></div>
+			<div class="absolute bottom-0 right-10 h-80 w-80 rounded-full bg-accent/20 blur-3xl"></div>
+		</div>
+
+		<div class="mx-auto max-w-6xl px-6 py-10">
+			<div class="text-sm text-base-content/60">
+				<a class="link-hover hover:text-primary transition-colors" href="/shop">All products</a>
+				<span class="px-2">/</span>
+				{product?.productType && (
+					<>
+						<span class="hover:text-primary cursor-pointer">{product.productType}</span>
+						<span class="px-2">/</span>
+					</>
+				)}
+				<span>{product?.productName ?? 'Product'}</span>
+			</div>
+		</div>
+	</section>
+
+	<section>
+		<div class="mx-auto grid max-w-6xl gap-10 px-6 pb-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+			<!-- Left Side: Image Gallery -->
+			<div class="flex gap-4">
+				<!-- Thumbnail Column -->
+				<div class="flex flex-col gap-3">
+					{[1, 2, 3].map((index) => (
+						<div 
+							class={`thumbnail-item w-20 h-20 rounded-xl border-2 ${index === 1 ? 'border-primary' : 'border-base-300/70'} bg-base-200/60 p-2 cursor-pointer hover:border-primary/50 transition-all duration-200`}
+							data-index={index}
+						>
+							<div class="flex h-full w-full items-center justify-center text-xs text-base-content/50">
+								img {index}
+							</div>
+						</div>
+					))}
+				</div>
+				
+				<!-- Main Image -->
+				<div class="flex-1 rounded-3xl border border-base-200/70 bg-base-200/60 p-6 shadow-lg">
+					<div class="aspect-square w-full rounded-2xl bg-base-100/70 flex items-center justify-center">
+						<p class="text-base-content/50 text-sm">select image in big size</p>
+					</div>
+				</div>
+			</div>
+
+			<!-- Right Side: Product Details -->
+			<div class="lg:sticky lg:top-24">
+				{error ? (
+					<div class="card bg-base-200/70 shadow-xl backdrop-blur">
+						<div class="card-body">
+							<h2 class="font-display text-2xl">Product not found</h2>
+							<p class="text-base-content/70">Return to the shop to select a product.</p>
+							<a class="btn btn-primary" href="/shop">Back to shop</a>
+						</div>
+					</div>
+				) : product && (
+					<div class="card bg-base-200/70 shadow-xl backdrop-blur">
+						<div class="card-body">
+							<!-- Product Name -->
+							<h1 class="font-display text-2xl font-semibold tracking-tight">
+								{product.productName}
+							</h1>
+
+							<!-- Pricing Table with Radio Selection -->
+							<div class="mt-4 overflow-hidden rounded-xl border border-base-300/70">
+								<table class="table table-sm w-full">
+									<tbody>
+										{plans.length > 0 ? (
+											plans.map((plan: any, index: number) => {
+												const monthlyPrice = plan.billingPeriod === 'yearly' 
+													? (plan.price / 12).toFixed(0) 
+													: plan.billingPeriod === '6 months' 
+														? (plan.price / 6).toFixed(0) 
+														: plan.price.toFixed(0);
+												const discount = plan.billingPeriod === 'yearly' 
+													? 30 
+													: plan.billingPeriod === '6 months' 
+														? 20 
+														: 0;
+												return (
+													<tr class="hover:bg-base-100/50 cursor-pointer border-b border-base-300/50 last:border-b-0">
+														<td class="py-3 px-4">
+															<label class="flex items-center gap-3 cursor-pointer w-full">
+																<input 
+																	type="radio" 
+																	name="plan" 
+																	value={plan.id}
+																	data-plan-name={plan.planName}
+																	data-plan-price={plan.price}
+																	data-plan-period={plan.billingPeriod}
+																	class="radio radio-primary radio-sm"
+																/>
+																<span class="font-medium capitalize">{plan.billingPeriod}</span>
+															</label>
+														</td>
+														<td class="py-3 px-4 text-right">
+															<span class="font-display font-semibold">{plan.price.toFixed(0)}</span>
+														</td>
+														<td class="py-3 px-4 text-right">
+															<span class="text-primary font-display font-bold">
+																{monthlyPrice}/month
+															</span>
+														</td>
+														<td class="py-3 px-4 text-right">
+															{discount > 0 && (
+																<span class="badge badge-error badge-sm text-white">{discount}%</span>
+															)}
+														</td>
+													</tr>
+												);
+											})
+										) : (
+											<tr class="bg-primary/5">
+												<td class="py-3 px-4" colspan="4">
+													<label class="flex items-center justify-between cursor-pointer w-full">
+														<div class="flex items-center gap-3">
+															<input 
+																type="radio" 
+																name="plan" 
+																value="onetime"
+																data-plan-name="One-time purchase"
+																data-plan-price={product.salesPrice}
+																data-plan-period="once"
+																class="radio radio-primary radio-sm"
+																checked
+															/>
+															<span class="font-medium">One-time purchase</span>
+														</div>
+														<span class="font-display font-bold text-primary">
+															${product.salesPrice?.toFixed(2)}
+														</span>
+													</label>
+												</td>
+											</tr>
+										)}
+									</tbody>
+								</table>
+							</div>
+
+							<!-- Product Category -->
+							<div class="mt-4 flex items-center justify-between">
+								<span class="text-base-content/70">Product category</span>
+								<span class="badge badge-secondary">{product.productType || 'General'}</span>
+							</div>
+
+							<!-- Variants Dropdown -->
+							{variants.length > 0 && (
+								<div class="mt-4">
+									<label class="text-base-content/70 text-sm mb-2 block">Variants available</label>
+									<select id="variantSelect" class="select select-bordered w-full">
+										<option value="" data-extra-price="0" data-variant-name="">Select a variant</option>
+										{variants.map((variant: any) => (
+											<option 
+												value={variant.id} 
+												data-extra-price={variant.extraPrice}
+												data-variant-name={`${variant.attribute}: ${variant.value}`}
+											>
+												{variant.attribute}: {variant.value} {variant.extraPrice > 0 ? `(+$${variant.extraPrice.toFixed(2)})` : ''}
+											</option>
+										))}
+									</select>
+								</div>
+							)}
+
+							<!-- Quantity and Add to Cart -->
+							<div class="mt-4 flex items-center gap-4">
+								<div class="flex items-center gap-0 border border-base-300 rounded-lg overflow-hidden">
+									<button id="decreaseQty" class="btn btn-ghost btn-sm px-4 rounded-none border-r border-base-300">−</button>
+									<input type="number" id="quantity" value="1" min="1" class="w-16 text-center bg-transparent border-none focus:outline-none" readonly />
+									<button id="increaseQty" class="btn btn-ghost btn-sm px-4 rounded-none border-l border-base-300">+</button>
+								</div>
+								<button 
+									id="addToCartBtn" 
+									class="btn btn-primary flex-1"
+									data-product-id={product.id}
+									data-product-name={product.productName}
+									data-product-price={product.salesPrice}
+									disabled={plans.length > 0}
+								>
+									Add to cart
+								</button>
+							</div>
+
+							<div class="divider my-4 opacity-50"></div>
+
+							<!-- Terms and Conditions -->
+							<div class="space-y-2 text-sm text-base-content/70">
+								<h3 class="font-medium text-base-content/80">Terms and conditions</h3>
+								<p class="flex items-center gap-2">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+									</svg>
+									30 day money back guarantee
+								</p>
+								<p class="flex items-center gap-2">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+									</svg>
+									Shipping 2-3 Business days
+								</p>
+							</div>
+
+							<a href="/shop" class="btn btn-ghost w-full mt-4">
+								← Back to shop
+							</a>
+						</div>
+					</div>
+				)}
+			</div>
+		</div>
+	</section>
+</Layout>
+
+<script>
+	const planRadios = document.querySelectorAll('input[name="plan"]');
+	const addToCartBtn = document.getElementById('addToCartBtn') as HTMLButtonElement;
+	const quantityInput = document.getElementById('quantity') as HTMLInputElement;
+	const decreaseBtn = document.getElementById('decreaseQty');
+	const increaseBtn = document.getElementById('increaseQty');
+	const variantSelect = document.getElementById('variantSelect') as HTMLSelectElement;
+
+	let selectedPlanId: string | null = null;
+	let selectedPlanData: { name: string; price: number; billingPeriod: string } | null = null;
+	let selectedVariant: { id: string | null; name: string; extraPrice: number } = { id: null, name: '', extraPrice: 0 };
+	let quantity = 1;
+
+	// Get product info from button data attributes
+	const productId = addToCartBtn?.getAttribute('data-product-id');
+	const productName = addToCartBtn?.getAttribute('data-product-name');
+	const productBasePrice = parseFloat(addToCartBtn?.getAttribute('data-product-price') || '0');
+
+	// Plan selection via radio buttons
+	planRadios.forEach((radio) => {
+		radio.addEventListener('change', (e) => {
+			const target = e.target as HTMLInputElement;
+			selectedPlanId = target.value;
+			const planName = target.getAttribute('data-plan-name') || '';
+			const planPrice = parseFloat(target.getAttribute('data-plan-price') || '0');
+			const planPeriod = target.getAttribute('data-plan-period') || '';
+			
+			selectedPlanData = { name: planName, price: planPrice, billingPeriod: planPeriod };
+			
+			if (addToCartBtn) addToCartBtn.disabled = false;
+		});
+	});
+
+	// Auto-select one-time purchase if no plans (pre-checked)
+	const onetimeRadio = document.querySelector('input[name="plan"][value="onetime"]') as HTMLInputElement;
+	if (onetimeRadio?.checked) {
+		selectedPlanId = 'onetime';
+		selectedPlanData = { 
+			name: 'One-time purchase', 
+			price: productBasePrice, 
+			billingPeriod: 'once' 
+		};
+		if (addToCartBtn) addToCartBtn.disabled = false;
+	}
+
+	// Quantity controls
+	decreaseBtn?.addEventListener('click', () => {
+		if (quantity > 1) {
+			quantity--;
+			if (quantityInput) quantityInput.value = quantity.toString();
+		}
+	});
+
+	increaseBtn?.addEventListener('click', () => {
+		quantity++;
+		if (quantityInput) quantityInput.value = quantity.toString();
+	});
+
+	// Variant selection
+	variantSelect?.addEventListener('change', (e) => {
+		const select = e.target as HTMLSelectElement;
+		const selectedOption = select.options[select.selectedIndex];
+		selectedVariant = {
+			id: select.value || null,
+			name: selectedOption.getAttribute('data-variant-name') || '',
+			extraPrice: parseFloat(selectedOption.getAttribute('data-extra-price') || '0')
+		};
+	});
+
+	// Add to cart functionality - POST to backend API
+	addToCartBtn?.addEventListener('click', async () => {
+		if (!productId || !selectedPlanData) return;
+
+		const finalPrice = selectedPlanData.price + selectedVariant.extraPrice;
+
+		const cartItem = {
+			userId: 1, // Default user for now
+			productId: parseInt(productId),
+			productName: productName,
+			planId: selectedPlanId === 'onetime' ? null : parseInt(selectedPlanId!),
+			planName: selectedPlanData.name,
+			variantId: selectedVariant.id ? parseInt(selectedVariant.id) : null,
+			variantName: selectedVariant.name || null,
+			price: finalPrice,
+			billingPeriod: selectedPlanData.billingPeriod,
+			quantity: quantity
+		};
+
+		try {
+			addToCartBtn.disabled = true;
+			addToCartBtn.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Adding...';
+
+			const response = await fetch('http://localhost:3000/cart', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(cartItem)
+			});
+
+			if (response.ok) {
+				showToast(`${productName} added to cart!`);
+				// Reset quantity
+				quantity = 1;
+				if (quantityInput) quantityInput.value = '1';
+			} else {
+				const error = await response.json();
+				showToast(error.message || 'Failed to add to cart', 'error');
+			}
+		} catch (error) {
+			showToast('Failed to connect to server', 'error');
+		} finally {
+			addToCartBtn.disabled = false;
+			addToCartBtn.innerHTML = 'Add to cart';
+		}
+	});
+
+	function showToast(message: string, type: 'success' | 'error' = 'success') {
+		const toast = document.createElement('div');
+		toast.className = 'toast toast-end toast-bottom z-50';
+		toast.innerHTML = `
+			<div class="alert ${type === 'success' ? 'alert-success' : 'alert-error'} shadow-lg">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${type === 'success' ? 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' : 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'}" />
+				</svg>
+				<span>${message}</span>
+			</div>
+		`;
+		document.body.appendChild(toast);
+		
+		setTimeout(() => {
+			toast.remove();
+		}, 3000);
+	}
+
+	// Thumbnail click to change main image
+	document.querySelectorAll('.thumbnail-item').forEach((thumb) => {
+		thumb.addEventListener('click', () => {
+			document.querySelectorAll('.thumbnail-item').forEach(t => {
+				t.classList.remove('border-primary');
+				t.classList.add('border-base-300/70');
+			});
+			thumb.classList.remove('border-base-300/70');
+			thumb.classList.add('border-primary');
+		});
+	});
+</script>

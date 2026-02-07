@@ -14,3 +14,15 @@ exports.createVariant = (req, res) => {
     }
   );
 };
+
+exports.getVariantsByProductId = (req, res) => {
+  const { productId } = req.params;
+  db.all(
+    `SELECT * FROM product_variants WHERE productId = ?`,
+    [productId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows);
+    }
+  );
+};

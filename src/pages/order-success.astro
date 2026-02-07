@@ -3,12 +3,29 @@ export const prerender = false;
 import Layout from '../layouts/Layout.astro';
 import PageHeader from '../components/PageHeader.astro';
 import AccessGate from '../components/AccessGate.astro';
-import { getOrderReceipt } from '../lib/checkout.js';
 
 const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
 
-const receipt = getOrderReceipt();
+// Get subscription number from query param
+const subscriptionNumber = Astro.url.searchParams.get('subscription');
+
+// Fetch subscription data from backend
+let subscription = null;
+let error = null;
+
+if (subscriptionNumber) {
+	try {
+		const response = await fetch(`http://localhost:3000/subscriptions/${subscriptionNumber}`);
+		if (response.ok) {
+			subscription = await response.json();
+		} else {
+			error = 'Failed to load order details';
+		}
+	} catch (e) {
+		error = 'Unable to connect to the server';
+	}
+}
 ---
 
 <Layout title="TinkerTrack • Order success" isLoggedIn={isLoggedIn}>
@@ -21,39 +38,106 @@ const receipt = getOrderReceipt();
 							<PageHeader
 								badge="Payment received"
 								title="Thanks for your order"
-								description={`Order ${receipt.orderId} · ${receipt.status}`}
+								description={subscription ? `Order ${subscription.subscriptionNumber}` : 'Order processed'}
 							/>
 
-							<div class="rounded-3xl border border-base-200/70 bg-base-200/70 p-6 shadow-lg">
-								<p class="text-sm text-base-content/70">{receipt.message}</p>
+							<div class="rounded-3xl border border-success/30 bg-success/10 p-6 shadow-lg">
+								<div class="flex items-center gap-3">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+									</svg>
+									<p class="text-sm text-base-content/70">Your payment has been processed successfully.</p>
+								</div>
 							</div>
 
+							{error && (
+								<div class="alert alert-warning">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+									</svg>
+									<span>{error}</span>
+								</div>
+							)}
+
 							<div class="flex flex-wrap items-center gap-3">
-								<a class="btn btn-primary" href="/shop">Continue shopping</a>
-								<button class="btn btn-outline">Print receipt</button>
+								<a class="btn btn-primary" href="/orders">View My Orders</a>
+								<button class="btn btn-outline" id="printBtn">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+									</svg>
+									Print
+								</button>
+								<a class="btn btn-outline" href="/shop">Continue shopping</a>
 							</div>
 						</div>
 
-						<aside class="lg:sticky lg:top-24">
+						<aside class="lg:sticky lg:top-24" id="orderSummary">
 							<div class="card bg-base-200/70 shadow-xl backdrop-blur">
 								<div class="card-body gap-6">
 									<h2 class="font-display text-2xl">Order summary</h2>
-									<div class="grid gap-3 text-sm text-base-content/70">
-										{receipt.lineItems.map((item) => (
-											<div class="flex items-center justify-between">
-												<span>{item.name}</span>
-												<span>{item.amount < 0 ? `-$${Math.abs(item.amount)}` : `$${item.amount}`}</span>
-											</div>
-										))}
-										<div class="flex items-center justify-between border-t border-base-300/70 pt-3 text-base-content">
-											<span>Total</span>
-											<span class="font-semibold">${receipt.summary.total}</span>
+									
+									{subscription && subscription.items && (
+										<div class="grid gap-3 text-sm">
+											{subscription.items.map((item) => (
+												<div class="flex items-start justify-between gap-4 rounded-xl border border-base-300/50 bg-base-100/50 p-3">
+													<div class="flex items-center gap-3">
+														<div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+															<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+															</svg>
+														</div>
+														<div>
+															<p class="font-medium text-base-content">{item.productName}</p>
+															<p class="text-xs text-base-content/60">Qty: {item.quantity}</p>
+														</div>
+													</div>
+													<span class="font-semibold">${item.amount?.toFixed(2)}</span>
+												</div>
+											))}
+											
+											{subscription.discountAmount > 0 && (
+												<div class="flex items-center justify-between text-success">
+													<span class="flex items-center gap-2">
+														<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+														</svg>
+														{subscription.discountCode || 'Discount'}
+													</span>
+													<span>-${subscription.discountAmount?.toFixed(2)}</span>
+												</div>
+											)}
 										</div>
-									</div>
+									)}
+
+									<div class="divider my-0"></div>
+
+									{subscription && (
+										<div class="grid gap-2 text-sm">
+											<div class="flex items-center justify-between text-base-content/70">
+												<span>Subtotal</span>
+												<span>${subscription.subtotal?.toFixed(2)}</span>
+											</div>
+											<div class="flex items-center justify-between text-base-content/70">
+												<span>Taxes (10%)</span>
+												<span>${subscription.tax?.toFixed(2)}</span>
+											</div>
+											{subscription.discountAmount > 0 && (
+												<div class="flex items-center justify-between text-success">
+													<span>Discount</span>
+													<span>-${subscription.discountAmount?.toFixed(2)}</span>
+												</div>
+											)}
+											<div class="flex items-center justify-between border-t border-base-300/70 pt-3 text-lg font-semibold text-base-content">
+												<span>Total</span>
+												<span>${subscription.total?.toFixed(2)}</span>
+											</div>
+										</div>
+									)}
+
 									<div class="rounded-2xl border border-base-300/70 bg-base-100/70 p-4 text-sm text-base-content/70">
 										<p class="font-medium text-base-content">Need anything else?</p>
 										<p class="mt-2">Your order is available in the workspace ledger and export-ready.</p>
-										<a class="link-hover mt-3 inline-block" href="/profile">Go to profile</a>
+										<a class="link-hover mt-3 inline-block text-primary" href="/orders">Go to orders →</a>
 									</div>
 								</div>
 							</div>
@@ -70,3 +154,35 @@ const receipt = getOrderReceipt();
 		)
 	}
 </Layout>
+
+<script>
+	const printBtn = document.getElementById('printBtn');
+	
+	printBtn?.addEventListener('click', () => {
+		window.print();
+	});
+</script>
+
+<style>
+	@media print {
+		/* Hide navigation and other elements during print */
+		:global(nav),
+		:global(footer),
+		.btn {
+			display: none !important;
+		}
+		
+		#orderSummary {
+			position: static !important;
+		}
+		
+		:global(body) {
+			background: white !important;
+		}
+		
+		.card {
+			box-shadow: none !important;
+			border: 1px solid #e5e7eb !important;
+		}
+	}
+</style>
