@@ -1,0 +1,164 @@
+---
+export const prerender = false;
+import Layout from '../layouts/Layout.astro';
+import 'dotenv/config';
+
+const session = Astro.locals?.session ?? {};
+if (session.isLoggedIn) {
+	return Astro.redirect('/shop');
+}
+
+const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:3000';
+const emailParam = Astro.url.searchParams.get('email') ?? '';
+---
+
+<Layout title="TinkerTrack • Verify OTP">
+	<main>
+		<section class="relative flex-1 overflow-hidden">
+			<div class="pointer-events-none absolute inset-0">
+				<div class="absolute -top-24 left-10 h-64 w-64 rounded-full bg-primary/20 blur-3xl"></div>
+				<div class="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-secondary/20 blur-3xl"></div>
+			</div>
+
+			<div class="mx-auto grid max-w-6xl gap-10 px-6 py-16 lg:grid-cols-2 lg:items-center">
+				<div class="flex flex-col items-center text-center lg:items-start lg:text-left">
+					<p class="badge badge-outline">Verification</p>
+					<h1 class="font-display mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
+						Confirm your one-time code
+					</h1>
+					<p class="mt-4 text-base-content/70">
+						We emailed a six digit code. Enter it to finish setting up your workspace.
+					</p>
+					<div class="mt-8 grid w-full gap-4 sm:max-w-md">
+						<div class="flex items-center gap-3 text-sm text-base-content/70">
+							<span class="badge badge-neutral">Secure</span>
+							<span>OTP verification keeps billing workspaces protected.</span>
+						</div>
+						<div class="flex items-center gap-3 text-sm text-base-content/70">
+							<span class="badge badge-neutral">Fast</span>
+							<span>Most codes arrive within 30 seconds.</span>
+						</div>
+					</div>
+				</div>
+
+				<div class="mx-auto w-full max-w-md">
+					<div class="card bg-base-200/70 shadow-2xl backdrop-blur">
+						<div class="card-body">
+							<h2 class="font-display text-2xl">Verify OTP</h2>
+							<p class="text-sm text-base-content/70">
+								Finish registration to unlock the TinkerTrack workspace.
+							</p>
+							<form
+								class="mt-6 grid gap-5"
+								id="verify-otp-form"
+								data-backend-url={backendUrl}
+							>
+								<div class="form-control">
+									<label class="label">
+										<span class="label-text">Email address</span>
+									</label>
+									<input
+										name="email"
+										type="email"
+										placeholder="you@track.app"
+										class="input input-bordered w-full"
+										value={emailParam}
+									/>
+									<p class="mt-2 text-xs text-error" data-error-for="email"></p>
+								</div>
+								<div class="form-control">
+									<label class="label">
+										<span class="label-text">One-time password</span>
+									</label>
+									<input
+										name="otp"
+										type="text"
+										inputmode="numeric"
+										maxlength="6"
+										placeholder="123456"
+										class="input input-bordered w-full tracking-[0.35em]"
+									/>
+									<p class="mt-2 text-xs text-error" data-error-for="otp"></p>
+								</div>
+								<button class="btn btn-primary" type="submit">Verify</button>
+							</form>
+							<div class="toast toast-top toast-end hidden" id="verify-toast">
+								<div class="alert alert-error">
+									<span id="verify-toast-message"></span>
+								</div>
+							</div>
+							<p class="mt-4 text-sm text-base-content/70">
+								Need a new code? <a class="link-hover" href="/register">Resend</a>
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+	</main>
+</Layout>
+
+<script>
+	const form = document.getElementById('verify-otp-form');
+	const toast = document.getElementById('verify-toast');
+	const toastMessage = document.getElementById('verify-toast-message');
+
+	const showToast = (message) => {
+		toastMessage.textContent = message;
+		toast.classList.remove('hidden');
+		setTimeout(() => toast.classList.add('hidden'), 4000);
+	};
+
+	const setError = (field, message) => {
+		const el = document.querySelector(`[data-error-for="${field}"]`);
+		if (el) el.textContent = message;
+	};
+
+	const clearErrors = () => {
+		document.querySelectorAll('[data-error-for]').forEach((el) => {
+			el.textContent = '';
+		});
+	};
+
+	form?.addEventListener('submit', async (event) => {
+		event.preventDefault();
+		clearErrors();
+
+		const formData = new FormData(form);
+		const payload = {
+			email: String(formData.get('email') ?? '').trim(),
+			otp: String(formData.get('otp') ?? '').trim()
+		};
+
+		let hasErrors = false;
+		if (!payload.email) {
+			setError('email', 'Email is required.');
+			hasErrors = true;
+		}
+		if (!/^[0-9]{6}$/.test(payload.otp)) {
+			setError('otp', 'OTP must be a 6 digit code.');
+			hasErrors = true;
+		}
+		if (hasErrors) return;
+
+		try {
+			const response = await fetch(`${form.dataset.backendUrl}/auth/verify-otp`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(payload)
+			});
+
+			const data = await response.json();
+			if (!response.ok) {
+				showToast(data.error ?? 'Unable to verify OTP.');
+				return;
+			}
+
+			window.location.href = '/login';
+		} catch (error) {
+			showToast('Network error. Please try again.');
+		}
+	});
+</script>

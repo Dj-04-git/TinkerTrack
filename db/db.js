@@ -26,6 +26,17 @@ db.serialize(() => {
     )
   `);
 
+  db.all("PRAGMA table_info(users)", (err, columns) => {
+    if (err || !Array.isArray(columns)) {
+      return;
+    }
+
+    const hasIsAdmin = columns.some((column) => column.name === "isAdmin");
+    if (!hasIsAdmin) {
+      db.run("ALTER TABLE users ADD COLUMN isAdmin INTEGER DEFAULT 0");
+    }
+  });
+
   db.run(`
     CREATE TABLE IF NOT EXISTS products (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
