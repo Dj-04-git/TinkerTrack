@@ -12,6 +12,8 @@ const db = new sqlite3.Database(
 // CREATE TABLES
 db.serialize(() => {
 
+  //user Table
+  //phone 10 digit only
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,6 +28,7 @@ db.serialize(() => {
     )
   `);
 
+  //Product
   db.run(`
     CREATE TABLE IF NOT EXISTS products (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,6 +39,7 @@ db.serialize(() => {
     )
   `);
 
+    //product variants
   db.run(`
     CREATE TABLE IF NOT EXISTS product_variants (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,6 +51,7 @@ db.serialize(() => {
     )
   `);
 
+  // Recurring plans
   db.run(`
     CREATE TABLE IF NOT EXISTS recurring_plans (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -56,6 +61,7 @@ db.serialize(() => {
     )
   `);
 
+  //normal plans
   db.run(`
     CREATE TABLE IF NOT EXISTS product_plans (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,6 +70,34 @@ db.serialize(() => {
       UNIQUE(productId, planId),
       FOREIGN KEY (productId) REFERENCES products(id),
       FOREIGN KEY (planId) REFERENCES recurring_plans(id)
+    )
+  `);
+
+  //subscription
+  db.run(`
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      subscriptionNumber TEXT UNIQUE,
+      customerName TEXT,
+      planId INTEGER,
+      startDate TEXT,
+      endDate TEXT,
+      paymentTerms TEXT,
+      status TEXT DEFAULT 'Draft'
+    )
+  `);
+
+  // Subscription_items
+  db.run(`
+    CREATE TABLE IF NOT EXISTS subscription_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      subscriptionId INTEGER,
+      productId INTEGER,
+      quantity INTEGER,
+      unitPrice REAL,
+      tax REAL,
+      amount REAL,
+      FOREIGN KEY (subscriptionId) REFERENCES subscriptions(id)
     )
   `);
 });
