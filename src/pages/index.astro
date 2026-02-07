@@ -1,11 +1,48 @@
 ---
-import Welcome from '../components/Welcome.astro';
 import Layout from '../layouts/Layout.astro';
-
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
 ---
 
-<Layout>
-	<Welcome />
+<Layout title="TinkerTrack • Access">
+	<main>
+		<section class="relative overflow-hidden">
+			<div class="pointer-events-none absolute inset-0">
+				<div
+					class="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/20 blur-3xl"
+				></div>
+				<div
+					class="absolute bottom-0 right-10 h-80 w-80 rounded-full bg-secondary/20 blur-3xl"
+				></div>
+			</div>
+			<div class="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-16 lg:flex-row lg:items-center">
+				<div class="max-w-xl">
+					<p class="badge badge-outline">Auth UI</p>
+					<h1 class="font-display mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
+						Welcome back to Track
+					</h1>
+					<p class="mt-4 text-base-content/70">
+						A focused, warm-toned interface for sign-in and registration. Clean, fast, and
+							ready for future data fetching.
+					</p>
+					<div class="mt-8 flex flex-wrap gap-4">
+						<a class="btn btn-primary" href="/login">Go to login</a>
+						<a class="btn btn-ghost" href="/register">Create an account</a>
+					</div>
+				</div>
+				<div class="w-full max-w-md">
+					<div class="card bg-base-200/60 shadow-xl backdrop-blur">
+						<div class="card-body">
+							<h2 class="font-display text-2xl">Quick access</h2>
+							<p class="text-sm text-base-content/70">
+								Jump into the auth flows with refined, form-first layouts.
+							</p>
+							<div class="mt-2 grid gap-3">
+								<a class="btn btn-outline" href="/login">Sign in</a>
+								<a class="btn btn-outline" href="/register">Register</a>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+	</main>
 </Layout>
