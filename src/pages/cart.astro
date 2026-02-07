@@ -1,0 +1,128 @@
+---
+import Layout from '../layouts/Layout.astro';
+import PageHeader from '../components/PageHeader.astro';
+import SummaryCard from '../components/SummaryCard.astro';
+import AccessGate from '../components/AccessGate.astro';
+import { getCartItems, getOrderSummary, getAddresses } from '../lib/checkout.js';
+
+const session = Astro.locals?.session ?? {};
+const isLoggedIn = Boolean(session.isLoggedIn);
+
+const cartItems = getCartItems();
+const orderSummary = getOrderSummary();
+const addresses = getAddresses();
+---
+
+<Layout title="TinkerTrack • Cart" isLoggedIn={isLoggedIn}>
+	{
+		isLoggedIn ? (
+			<section class="relative overflow-hidden">
+				<div class="mx-auto max-w-6xl px-6 py-16">
+					<PageHeader
+						badge="Order workflow"
+						title="Order, address, payment"
+						description="Review subscriptions, confirm address defaults, and apply discount codes before checkout."
+					/>
+
+					<div class="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+						<div class="grid gap-6">
+							<div class="grid gap-4">
+								<h2 class="font-display text-2xl">Your subscriptions</h2>
+								{cartItems.map((item) => (
+									<div class="card bg-base-200/70 shadow-lg backdrop-blur">
+										<div class="card-body gap-4">
+											<div class="flex flex-wrap items-start justify-between gap-4">
+												<div>
+													<h3 class="font-display text-xl">{item.name}</h3>
+													<p class="text-sm text-base-content/70">{item.summary}</p>
+												</div>
+												<button class="btn btn-ghost btn-xs">Remove</button>
+											</div>
+											<div class="flex flex-wrap items-center justify-between gap-4 text-sm text-base-content/70">
+												<span>${item.price} {item.unit}</span>
+												<div class="flex items-center overflow-hidden rounded-2xl border border-base-300/70 bg-base-100/70">
+													<button class="px-4 py-2 text-base-content/70 hover:bg-base-200/70" type="button">-</button>
+													<input
+														type="number"
+														value={item.quantity}
+														class="w-16 bg-transparent px-2 py-2 text-center text-sm outline-none"
+														min="1"
+													/>
+													<button class="px-4 py-2 text-base-content/70 hover:bg-base-200/70" type="button">+</button>
+												</div>
+											</div>
+										</div>
+									</div>
+								))}
+							</div>
+
+							<div class="card bg-base-200/70 shadow-lg backdrop-blur">
+								<div class="card-body gap-4">
+									<h2 class="font-display text-2xl">Address</h2>
+									<p class="text-sm text-base-content/70">
+										Use the default billing address or add a new location.
+									</p>
+									<div class="grid gap-3">
+										{addresses.map((address) => (
+											<div class="rounded-2xl border border-base-300/70 bg-base-100/70 p-4 text-sm">
+												<p class="font-semibold">{address.label}</p>
+												<p class="text-base-content/70">{address.name}</p>
+												<p class="text-base-content/70">
+													{address.line1}, {address.line2}
+												</p>
+												<p class="text-base-content/70">
+													{address.city}, {address.region} {address.postalCode}
+												</p>
+												<p class="text-base-content/70">{address.country}</p>
+											</div>
+										))}
+										<button class="btn btn-outline btn-sm w-fit">Add new address</button>
+									</div>
+								</div>
+							</div>
+
+							<div class="card bg-base-200/70 shadow-lg backdrop-blur">
+								<div class="card-body gap-4">
+									<h2 class="font-display text-2xl">Payment</h2>
+									<p class="text-sm text-base-content/70">
+										Use any test gateway during beta. Live processing will follow later.
+									</p>
+									<div class="rounded-2xl border border-base-300/70 bg-base-100/70 p-4 text-sm text-base-content/70">
+										<p class="font-medium text-base-content">Payment method</p>
+										<p class="mt-2">Card ending •••• 4242 · Expires 05/29</p>
+										<button class="btn btn-outline btn-sm mt-4">Change method</button>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<aside class="lg:sticky lg:top-24">
+							<SummaryCard
+								subtotal={orderSummary.subtotal}
+								taxes={orderSummary.taxes}
+								total={orderSummary.total}
+							>
+								<div class="grid gap-3">
+									<label class="input input-bordered flex items-center gap-2">
+										<input type="text" class="grow" placeholder="Discount code" />
+										<button class="btn btn-primary btn-sm">Apply</button>
+									</label>
+									<div class="rounded-2xl border border-base-300/70 bg-base-100/70 p-3 text-xs text-base-content/70">
+										{orderSummary.discountLabel} applied · -${orderSummary.discount}
+									</div>
+								</div>
+								<a class="btn btn-primary" href="/order-success">Checkout</a>
+							</SummaryCard>
+						</aside>
+					</div>
+				</div>
+			</section>
+		) : (
+			<AccessGate
+				badge="Login required"
+				title="Sign in to view your cart"
+				description="This page contains billing data and subscriptions tied to your workspace."
+			/>
+		)
+	}
+</Layout>

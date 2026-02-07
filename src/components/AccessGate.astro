@@ -1,0 +1,34 @@
+---
+import PageHeader from './PageHeader.astro';
+
+interface Props {
+	badge?: string;
+	title?: string;
+	description?: string;
+	linkHref?: string;
+	linkText?: string;
+	hint?: string;
+}
+
+const {
+	badge = 'Access restricted',
+	title = 'Login required',
+	description = 'Please sign in to view this page.',
+	linkHref = '/login',
+	linkText = 'Go to login',
+	hint = 'You can sign in with your workspace account to continue.'
+} = Astro.props;
+---
+
+<section class="relative overflow-hidden">
+	<div class="mx-auto max-w-6xl px-6 py-16">
+		<PageHeader badge={badge} title={title} description={description} />
+
+		<div class="mt-10 card bg-base-200/70 shadow-xl backdrop-blur">
+			<div class="card-body gap-4">
+				<p class="text-base-content/70">{hint}</p>
+				<a class="btn btn-primary w-fit" href={linkHref}>{linkText}</a>
+			</div>
+		</div>
+	</div>
+</section>
