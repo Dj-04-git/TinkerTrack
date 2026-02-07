@@ -1,38 +1,40 @@
-const { Product, RecurringPlan } = require("../models");
+const db = require("../db/db");
 
-exports.createPlan = async (req, res) => {
-  try {
-    const plan = await RecurringPlan.create(req.body);
-    res.status(201).json(plan);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+// CREATE PLAN
+exports.createPlan = (req, res) => {
+  const { planName, price, billingPeriod } = req.body;
 
-exports.getPlans = async (req, res) => {
-  try {
-    const plans = await RecurringPlan.findAll();
-    res.json(plans);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-exports.assignPlanToProduct = async (req, res) => {
-  try {
-    const { productId } = req.params;
-    const { planId } = req.body;
-
-    const product = await Product.findByPk(productId);
-    const plan = await RecurringPlan.findByPk(planId);
-
-    if (!product || !plan) {
-      return res.status(404).json({ message: "Product or Plan not found" });
+  db.run(
+    `INSERT INTO recurring_plans (planName, price, billingPeriod)
+     VALUES (?, ?, ?)`,
+    [planName, price, billingPeriod],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.status(201).json({ id: this.lastID });
     }
+  );
+};
 
-    await product.addRecurringPlan(plan);
-    res.json({ message: "Plan assigned to product" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+// GET PLANS
+exports.getPlans = (req, res) => {
+  db.all(`SELECT * FROM recurring_plans`, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+};
+
+// ASSIGN PLAN TO PRODUCT
+exports.assignPlanToProduct = (req, res) => {
+  const { productId } = req.params;
+  const { planId } = req.body;
+
+  db.run(
+    `INSERT OR IGNORE INTO product_plans (productId, planId)
+     VALUES (?, ?)`,
+    [productId, planId],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: "Plan assigned to product" });
+    }
+  );
 };
