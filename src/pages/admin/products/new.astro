@@ -3,6 +3,7 @@ export const prerender = false;
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import AccessGate from '../../../components/AccessGate.astro';
 import ProductForm from '../../../components/admin/ProductForm.astro';
+import AdminPageHeader from '../../../components/admin/AdminPageHeader.astro';
 
 const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
@@ -28,21 +29,16 @@ const isAdmin = Boolean(session.isAdmin);
 			/>
 		) : (
 			<div class="p-6 lg:p-8">
-				<!-- Page header -->
-				<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-					<div>
-						<div class="flex items-center gap-2 mb-2">
-							<a href="/admin/products" class="btn btn-ghost btn-xs">
-								<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-									<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-								</svg>
-								Back to products
-							</a>
-						</div>
-						<p class="text-xs uppercase tracking-widest text-base-content/50 mb-2">Product management</p>
-						<h1 class="font-display text-2xl sm:text-3xl font-semibold">New Product</h1>
-					</div>
-					<div class="flex items-center gap-2">
+				<AdminPageHeader eyebrow="Product management" title="New Product">
+					<Fragment slot="lead">
+						<a href="/admin/products" class="btn btn-ghost btn-xs">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+							</svg>
+							Back to products
+						</a>
+					</Fragment>
+					<Fragment slot="actions">
 						<a href="/admin/products" class="btn btn-ghost btn-sm">Cancel</a>
 						<button class="btn btn-primary btn-sm">
 							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -50,8 +46,8 @@ const isAdmin = Boolean(session.isAdmin);
 							</svg>
 							Create product
 						</button>
-					</div>
-				</div>
+					</Fragment>
+				</AdminPageHeader>
 
 				<!-- Product form -->
 				<div class="max-w-4xl grid gap-6">

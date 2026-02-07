@@ -1,0 +1,339 @@
+---
+export const prerender = false;
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AccessGate from '../../../components/AccessGate.astro';
+import AdminPageHeader from '../../../components/admin/AdminPageHeader.astro';
+import AdminStatusFlow from '../../../components/admin/AdminStatusFlow.astro';
+
+const session = Astro.locals?.session ?? {};
+const isLoggedIn = Boolean(session.isLoggedIn);
+const isAdmin = Boolean(session.isAdmin);
+
+// Generate next subscription number (mock)
+const nextSubNumber = 'SO004';
+
+// Mock data for dropdowns
+const customers = ['Harbor SaaS Studio', 'Sunward Labs', 'Flux Interactive', 'Apex Dynamics', 'Coastal Commerce'];
+const quotationTemplates = ['Starter Subscription Quote', 'Enterprise Annual', 'SMB Monthly', 'Custom Quote'];
+const recurringPlans = ['Weekly Plan', 'Monthly Plan', 'Quarterly Plan', 'Annual Plan'];
+const paymentTerms = ['Immediate', 'Net 15', 'Net 30', 'Net 60'];
+const products = [
+	{ name: 'Pulse Analytics Suite', price: 2400 },
+	{ name: 'Retention Lab', price: 980 },
+	{ name: 'Design Toolkit', price: 800 },
+	{ name: 'Enterprise Platform', price: 24000 },
+	{ name: 'Priority Support', price: 4800 }
+];
+
+const statusFlow = ['Quotation', 'Quotation Sent', 'Confirmed'];
+
+// Default expiration (15 days from now)
+const defaultExpiration = new Date();
+defaultExpiration.setDate(defaultExpiration.getDate() + 15);
+const formattedExpiration = defaultExpiration.toISOString().split('T')[0];
+---
+
+<AdminLayout title="TinkerTrack • New Subscription" isLoggedIn={isLoggedIn} activeTab="Subscriptions">
+	{
+		!isLoggedIn ? (
+			<AccessGate
+				badge="Login required"
+				title="Sign in to create subscription"
+				description="Admin workspaces are available after you sign in."
+			/>
+		) : !isAdmin ? (
+			<AccessGate
+				badge="Admin only"
+				title="Admin access required"
+				description="Only workspace admins can create subscription records."
+				linkHref="/profile"
+				linkText="Go to profile"
+				hint="Request admin access from your workspace owner."
+			/>
+		) : (
+			<div class="p-6 lg:p-8" x-data={`{
+				activeTab: 'orderLines',
+				orderLines: [],
+				newLine: { product: '', quantity: 1, unitPrice: 0, discount: 0 },
+				products: ${JSON.stringify(products)},
+				
+				get subtotal() {
+					return this.orderLines.reduce((sum, line) => sum + (line.unitPrice * line.quantity), 0);
+				},
+				get totalDiscount() {
+					return this.orderLines.reduce((sum, line) => sum + parseFloat(line.discount || 0), 0);
+				},
+				get totalTaxes() {
+					return (this.subtotal - this.totalDiscount) * 0.15;
+				},
+				get grandTotal() {
+					return this.subtotal - this.totalDiscount + this.totalTaxes;
+				},
+				
+				selectProduct() {
+					const product = this.products.find(p => p.name === this.newLine.product);
+					if (product) {
+						this.newLine.unitPrice = product.price;
+					}
+				},
+				
+				addLine() {
+					if (!this.newLine.product) return;
+					const taxes = (this.newLine.unitPrice * this.newLine.quantity - this.newLine.discount) * 0.15;
+					const amount = this.newLine.unitPrice * this.newLine.quantity - this.newLine.discount + taxes;
+					this.orderLines.push({
+						...this.newLine,
+						taxes: taxes,
+						amount: amount
+					});
+					this.newLine = { product: '', quantity: 1, unitPrice: 0, discount: 0 };
+				},
+				
+				removeLine(index) {
+					this.orderLines.splice(index, 1);
+				}
+			}`}>
+				<AdminPageHeader eyebrow="New subscription" title={nextSubNumber}>
+					<Fragment slot="lead">
+						<a href="/admin/subscriptions" class="btn btn-ghost btn-xs">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+							</svg>
+							Back to subscriptions
+						</a>
+					</Fragment>
+					<Fragment slot="actions">
+						<button class="btn btn-secondary btn-sm" disabled>Send</button>
+						<button class="btn btn-primary btn-sm" disabled>Confirm</button>
+					</Fragment>
+				</AdminPageHeader>
+
+				<div class="max-w-5xl grid gap-6">
+					<!-- Status flow -->
+					<div class="flex items-center justify-end">
+						<AdminStatusFlow statuses={statusFlow} currentIndex={0} />
+					</div>
+
+					<!-- Subscription form -->
+					<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+						<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40">
+							<h3 class="font-display text-lg">Subscription Information</h3>
+							<p class="text-xs text-base-content/60 mt-0.5">Basic subscription details</p>
+						</div>
+						<div class="p-5 grid gap-5">
+							<!-- Row 1: Subscription Number + Customer -->
+							<div class="grid gap-5 sm:grid-cols-2">
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Subscription Number</span>
+									<input type="text" value={nextSubNumber} class="input input-bordered bg-base-200/60" readonly />
+									<span class="label-text-alt">Auto-generated</span>
+								</label>
+
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Customer</span>
+									<select class="select select-bordered bg-base-100/80" required>
+										<option value="" disabled selected>Select customer...</option>
+										{customers.map((c) => (
+											<option>{c}</option>
+										))}
+										<option disabled>──────────</option>
+										<option value="new">+ Create new customer</option>
+									</select>
+								</label>
+							</div>
+
+							<!-- Row 2: Expiration + Recurring Plan -->
+							<div class="grid gap-5 sm:grid-cols-2">
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Expiration</span>
+									<input type="date" value={formattedExpiration} class="input input-bordered bg-base-100/80" />
+									<span class="label-text-alt">Expiry of quotation, after which customer cannot sign or pay</span>
+								</label>
+
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Recurring Plan</span>
+									<select class="select select-bordered bg-base-100/80">
+										<option value="" disabled selected>Select plan...</option>
+										{recurringPlans.map((p) => (
+											<option>{p}</option>
+										))}
+									</select>
+								</label>
+							</div>
+
+							<!-- Row 3: Quotation Template + Payment Term -->
+							<div class="grid gap-5 sm:grid-cols-2">
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Quotation Template</span>
+									<select class="select select-bordered bg-base-100/80">
+										<option value="" disabled selected>Select template...</option>
+										{quotationTemplates.map((t) => (
+											<option>{t}</option>
+										))}
+									</select>
+								</label>
+
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Payment Term</span>
+									<select class="select select-bordered bg-base-100/80">
+										{paymentTerms.map((t) => (
+											<option>{t}</option>
+										))}
+									</select>
+								</label>
+							</div>
+						</div>
+					</div>
+
+					<!-- Tabs: Order Lines / Other Info -->
+					<div class="flex items-center gap-2 px-1">
+						<button 
+							class="btn btn-sm transition-all"
+							:class="activeTab === 'orderLines' ? 'btn-primary' : 'btn-ghost'"
+							@click="activeTab = 'orderLines'"
+						>
+							Order Lines
+						</button>
+						<button 
+							class="btn btn-sm transition-all"
+							:class="activeTab === 'otherInfo' ? 'btn-primary' : 'btn-ghost'"
+							@click="activeTab = 'otherInfo'"
+						>
+							Other Info
+						</button>
+					</div>
+
+					<!-- Order Lines Tab -->
+					<div x-show="activeTab === 'orderLines'" x-transition>
+						<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+							<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40">
+								<h3 class="font-display text-lg">Order Lines</h3>
+								<p class="text-xs text-base-content/60 mt-0.5">Add products to this subscription</p>
+							</div>
+							<div class="overflow-x-auto">
+								<table class="table">
+									<thead>
+										<tr class="text-xs uppercase tracking-widest text-base-content/50 border-b border-base-300/60">
+											<th class="font-medium">Product</th>
+											<th class="font-medium text-center">Quantity</th>
+											<th class="font-medium text-right">Unit Price</th>
+											<th class="font-medium text-right">Discount</th>
+											<th class="font-medium text-right">Taxes</th>
+											<th class="font-medium text-right">Amount</th>
+											<th class="w-16"></th>
+										</tr>
+									</thead>
+									<tbody>
+										<template x-for="(line, index) in orderLines" :key="index">
+											<tr class="border-b border-base-300/40 hover:bg-base-200/30">
+												<td class="font-medium" x-text="line.product"></td>
+												<td class="text-center" x-text="line.quantity"></td>
+												<td class="text-right font-mono text-sm" x-text="'$' + line.unitPrice.toLocaleString()"></td>
+												<td class="text-right font-mono text-sm text-error" x-text="line.discount > 0 ? '-$' + parseFloat(line.discount).toLocaleString() : '—'"></td>
+												<td class="text-right font-mono text-sm text-base-content/70" x-text="'$' + line.taxes.toFixed(2)"></td>
+												<td class="text-right font-mono text-sm font-medium" x-text="'$' + line.amount.toFixed(2)"></td>
+												<td>
+													<button @click="removeLine(index)" class="btn btn-ghost btn-xs text-error">
+														<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+															<path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+														</svg>
+													</button>
+												</td>
+											</tr>
+										</template>
+										<!-- Add new line row -->
+										<tr class="bg-base-200/30">
+											<td>
+												<select x-model="newLine.product" @change="selectProduct()" class="select select-bordered select-sm bg-base-100/80 w-full">
+													<option value="" disabled>Select product...</option>
+													{products.map((p) => (
+														<option value={p.name}>{p.name}</option>
+													))}
+												</select>
+											</td>
+											<td class="text-center">
+												<input type="number" min="1" x-model.number="newLine.quantity" class="input input-bordered input-sm bg-base-100/80 w-20 text-center" />
+											</td>
+											<td class="text-right">
+												<input type="number" step="0.01" x-model.number="newLine.unitPrice" class="input input-bordered input-sm bg-base-100/80 w-24 text-right" />
+											</td>
+											<td class="text-right">
+												<input type="number" step="0.01" x-model.number="newLine.discount" placeholder="0.00" class="input input-bordered input-sm bg-base-100/80 w-24 text-right" />
+											</td>
+											<td class="text-right text-base-content/50">Auto</td>
+											<td class="text-right text-base-content/50">—</td>
+											<td>
+												<button @click="addLine()" class="btn btn-ghost btn-xs text-primary">Add</button>
+											</td>
+										</tr>
+									</tbody>
+									<tfoot class="bg-base-100/40">
+										<tr class="border-t border-base-300/60">
+											<td colspan="5" class="text-right font-medium text-base-content/70">Subtotal</td>
+											<td class="text-right font-mono" x-text="'$' + subtotal.toLocaleString()"></td>
+											<td></td>
+										</tr>
+										<tr>
+											<td colspan="5" class="text-right font-medium text-error/70">Discount</td>
+											<td class="text-right font-mono text-error" x-text="'-$' + totalDiscount.toLocaleString()"></td>
+											<td></td>
+										</tr>
+										<tr>
+											<td colspan="5" class="text-right font-medium text-base-content/70">Taxes (15%)</td>
+											<td class="text-right font-mono" x-text="'$' + totalTaxes.toFixed(2)"></td>
+											<td></td>
+										</tr>
+										<tr class="border-t border-base-300/60">
+											<td colspan="5" class="text-right font-display text-lg">Total</td>
+											<td class="text-right font-mono text-lg font-bold" x-text="'$' + grandTotal.toFixed(2)"></td>
+											<td></td>
+										</tr>
+									</tfoot>
+								</table>
+							</div>
+						</div>
+					</div>
+
+					<!-- Other Info Tab -->
+					<div x-show="activeTab === 'otherInfo'" x-transition>
+						<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+							<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40">
+								<h3 class="font-display text-lg">Additional Information</h3>
+							</div>
+							<div class="p-5 grid gap-5">
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Internal Notes</span>
+									<textarea class="textarea textarea-bordered bg-base-100/80 h-32" placeholder="Add internal notes about this subscription..."></textarea>
+								</label>
+
+								<div class="grid gap-5 sm:grid-cols-2">
+									<label class="form-control">
+										<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Start Date</span>
+										<input type="date" class="input input-bordered bg-base-100/80" />
+										<span class="label-text-alt">When the subscription should start</span>
+									</label>
+
+									<div class="form-control">
+										<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Status</span>
+										<div class="badge badge-outline mt-2">Draft</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Action buttons -->
+					<div class="flex items-center justify-end gap-3 pt-2">
+						<a href="/admin/subscriptions" class="btn btn-ghost btn-sm">Cancel</a>
+						<button class="btn btn-primary btn-sm">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+							</svg>
+							Create subscription
+						</button>
+					</div>
+				</div>
+			</div>
+		)
+	}
+</AdminLayout>

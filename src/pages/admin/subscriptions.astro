@@ -2,39 +2,30 @@
 export const prerender = false;
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import AccessGate from '../../components/AccessGate.astro';
-import AdminStatusFlow from '../../components/admin/AdminStatusFlow.astro';
-import OrderLinesTable from '../../components/admin/OrderLinesTable.astro';
+import AdminPageHeader from '../../components/admin/AdminPageHeader.astro';
 
 const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
 const isAdmin = Boolean(session.isAdmin);
 
-const statusFlow = ['Draft', 'Quotation', 'Confirmed', 'Active', 'Closed'];
-
-const orderLines = [
-	{
-		product: 'Pulse Analytics Suite',
-		quantity: 1,
-		unitPrice: 2400,
-		taxes: 360,
-		amount: 2760
-	},
-	{
-		product: 'Retention Lab',
-		quantity: 2,
-		unitPrice: 980,
-		taxes: 196,
-		amount: 2156
-	}
-];
-
 const subscriptions = [
-	{ id: 'S-0527', customer: 'Harbor SaaS Studio', status: 'Draft', plan: 'Monthly', amount: 4916 },
-	{ id: 'S-0526', customer: 'Sunward Labs', status: 'Active', plan: 'Annual', amount: 28800 },
-	{ id: 'S-0525', customer: 'Flux Interactive', status: 'Confirmed', plan: 'Monthly', amount: 2760 }
+	{ id: 'SO001', customer: 'Harbor SaaS Studio', status: 'Quotation', plan: 'Monthly', orderDate: '2026-02-01', expiration: '2026-02-15', amount: 4808.20 },
+	{ id: 'SO002', customer: 'Sunward Labs', status: 'Confirmed', plan: 'Annual', orderDate: '2026-01-15', expiration: '2027-01-15', amount: 30360 },
+	{ id: 'SO003', customer: 'Flux Interactive', status: 'Quotation Sent', plan: 'Monthly', orderDate: '2026-02-05', expiration: '2026-02-20', amount: 2620.80 },
+	{ id: 'SO004', customer: 'Apex Dynamics', status: 'Closed', plan: 'Quarterly', orderDate: '2025-10-01', expiration: '2026-01-01', amount: 1840 },
+	{ id: 'SO005', customer: 'Coastal Commerce', status: 'Quotation', plan: 'Monthly', orderDate: '2026-02-08', expiration: '2026-02-22', amount: 1250 },
 ];
 
-const selectedSub = subscriptions[0];
+const getStatusBadgeClass = (status: string) => {
+	switch (status) {
+		case 'Quotation': return 'badge-warning badge-outline';
+		case 'Quotation Sent': return 'badge-info badge-outline';
+		case 'Confirmed': return 'badge-success';
+		case 'Closed': return 'badge-neutral';
+		case 'Cancelled': return 'badge-error badge-outline';
+		default: return 'badge-ghost';
+	}
+};
 ---
 
 <AdminLayout title="TinkerTrack • Subscriptions" isLoggedIn={isLoggedIn} activeTab="Subscriptions">
@@ -56,172 +47,86 @@ const selectedSub = subscriptions[0];
 			/>
 		) : (
 			<div class="p-6 lg:p-8">
-				<!-- Page header -->
-				<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-					<div>
-						<p class="text-xs uppercase tracking-widest text-base-content/50 mb-2">Subscription management</p>
-						<h1 class="font-display text-2xl sm:text-3xl font-semibold">Subscriptions</h1>
-					</div>
-					<div class="flex items-center gap-2">
-						<button class="btn btn-outline btn-sm">Save draft</button>
-						<button class="btn btn-primary btn-sm">
+				<AdminPageHeader eyebrow="Subscription management" title="Subscriptions">
+					<Fragment slot="actions">
+						<a href="/admin/subscriptions/new" class="btn btn-primary btn-sm">
 							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 								<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
 							</svg>
-							New subscription
-						</button>
-					</div>
-				</div>
+							New
+						</a>
+					</Fragment>
+				</AdminPageHeader>
 
-				<!-- Main grid: Subscription list + Detail panel -->
-				<div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-					<!-- Subscription list -->
-					<div class="order-2 xl:order-1">
-						<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
-							<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40 flex items-center justify-between">
-								<h3 class="font-display text-lg">All subscriptions</h3>
-								<label class="input input-bordered input-sm flex items-center gap-2 bg-base-100/80 w-48">
-									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-										<path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-									</svg>
-									<input type="text" class="grow bg-transparent" placeholder="Search…" />
-								</label>
+				<!-- Subscriptions list -->
+				<div class="max-w-5xl">
+					<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden" x-data="{ search: '', subscriptions: [], get filteredSubs() { return this.subscriptions.filter(s => s.customer.toLowerCase().includes(this.search.toLowerCase()) || s.id.toLowerCase().includes(this.search.toLowerCase())) } }" x-init={`subscriptions = ${JSON.stringify(subscriptions)}`}>
+						<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40 flex items-center justify-between gap-4">
+							<div>
+								<h3 class="font-display text-lg">All Subscriptions</h3>
+								<p class="text-xs text-base-content/60 mt-0.5">Click on a subscription to view details</p>
 							</div>
-							<div class="overflow-x-auto">
-								<table class="table table-sm">
-									<thead>
-										<tr class="border-base-300/60">
-											<th class="text-xs uppercase tracking-wider text-base-content/50">ID</th>
-											<th class="text-xs uppercase tracking-wider text-base-content/50">Customer</th>
-											<th class="text-xs uppercase tracking-wider text-base-content/50">Status</th>
-											<th class="text-xs uppercase tracking-wider text-base-content/50 text-right">Amount</th>
-											<th></th>
-										</tr>
-									</thead>
-									<tbody>
-										{subscriptions.map((sub) => (
-											<tr class="hover:bg-base-200/50 border-base-300/40 cursor-pointer">
-												<td class="font-medium">{sub.id}</td>
-												<td>{sub.customer}</td>
+							<label class="input input-bordered flex items-center gap-2 bg-base-100/80 w-64">
+								<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+									<path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m1.35-5.65a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" />
+								</svg>
+								<input type="text" class="grow bg-transparent" placeholder="Search subscriptions..." x-model="search" />
+							</label>
+						</div>
+						<div class="overflow-x-auto">
+							<table class="table">
+								<thead>
+									<tr class="text-xs uppercase tracking-widest text-base-content/50 border-b border-base-300/60">
+										<th class="font-medium">Subscription #</th>
+										<th class="font-medium">Customer</th>
+										<th class="font-medium">Status</th>
+										<th class="font-medium">Recurring Plan</th>
+										<th class="font-medium">Expiration</th>
+										<th class="font-medium text-right">Amount</th>
+										<th class="w-16"></th>
+									</tr>
+								</thead>
+								<tbody>
+									<template x-if="filteredSubs.length > 0">
+										<template x-for="sub in filteredSubs" :key="sub.id">
+											<tr class="hover:bg-base-200/40 transition-colors cursor-pointer border-b border-base-300/40" @click="window.location.href = `/admin/subscriptions/${sub.id}`">
+												<td class="font-medium text-primary" x-text="sub.id"></td>
+												<td x-text="sub.customer"></td>
 												<td>
-													<span class:list={[
-														'badge badge-sm',
-														sub.status === 'Draft' && 'badge-ghost',
-														sub.status === 'Active' && 'badge-success',
-														sub.status === 'Confirmed' && 'badge-info'
-													]}>{sub.status}</span>
+													<span class="badge badge-sm" 
+														:class="sub.status === 'Quotation' ? 'badge-warning badge-outline' : sub.status === 'Quotation Sent' ? 'badge-info badge-outline' : sub.status === 'Confirmed' ? 'badge-success' : sub.status === 'Closed' ? 'badge-neutral' : sub.status === 'Cancelled' ? 'badge-error badge-outline' : 'badge-ghost'"
+														x-text="sub.status"></span>
 												</td>
-												<td class="text-right font-mono text-sm">${sub.amount.toLocaleString()}</td>
+												<td x-text="sub.plan"></td>
+												<td class="text-base-content/70" x-text="sub.expiration"></td>
+												<td class="text-right font-mono text-sm">$<span x-text="sub.amount.toLocaleString()"></span></td>
 												<td>
-													<button class="btn btn-ghost btn-xs">
+													<a :href="`/admin/subscriptions/${sub.id}`" class="btn btn-ghost btn-xs" @click.stop>
 														<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 															<path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
 														</svg>
-													</button>
+													</a>
 												</td>
 											</tr>
-										))}
-									</tbody>
-								</table>
-							</div>
+										</template>
+									</template>
+									<template x-if="filteredSubs.length === 0">
+										<tr>
+											<td colspan="7" class="text-center py-12 text-base-content/50">
+												<div class="flex flex-col items-center gap-3">
+													<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+														<path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+													</svg>
+													<p x-text="search ? 'No subscriptions match your search' : 'No subscriptions yet'"></p>
+												</div>
+											</td>
+										</tr>
+									</template>
+								</tbody>
+							</table>
 						</div>
-					</div>
-
-					<!-- Detail panel -->
-					<div class="order-1 xl:order-2 grid gap-6">
-						<!-- Subscription header card -->
-						<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
-							<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40 flex items-center justify-between">
-								<div class="flex items-center gap-3">
-									<h3 class="font-display text-lg">{selectedSub.id}</h3>
-									<span class="badge badge-ghost">{selectedSub.status}</span>
-								</div>
-								<div class="flex items-center gap-2">
-									<button class="btn btn-ghost btn-sm">Cancel</button>
-									<button class="btn btn-primary btn-sm">Confirm</button>
-								</div>
-							</div>
-							<div class="p-5">
-								<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-									<label class="form-control">
-										<span class="label-text text-xs uppercase tracking-wider text-base-content/60">Customer</span>
-										<select class="select select-bordered select-sm bg-base-100/80 mt-1">
-											<option selected>Harbor SaaS Studio</option>
-											<option>Sunward Labs</option>
-											<option>New customer…</option>
-										</select>
-									</label>
-									<label class="form-control">
-										<span class="label-text text-xs uppercase tracking-wider text-base-content/60">Plan</span>
-										<select class="select select-bordered select-sm bg-base-100/80 mt-1">
-											<option selected>Monthly</option>
-											<option>Annual</option>
-											<option>Usage based</option>
-										</select>
-									</label>
-									<label class="form-control">
-										<span class="label-text text-xs uppercase tracking-wider text-base-content/60">Payment terms</span>
-										<input class="input input-bordered input-sm bg-base-100/80 mt-1" type="text" value="Net 15" />
-									</label>
-									<label class="form-control">
-										<span class="label-text text-xs uppercase tracking-wider text-base-content/60">Start date</span>
-										<input class="input input-bordered input-sm bg-base-100/80 mt-1" type="date" value="2026-02-07" />
-									</label>
-									<label class="form-control">
-										<span class="label-text text-xs uppercase tracking-wider text-base-content/60">Expiration date</span>
-										<input class="input input-bordered input-sm bg-base-100/80 mt-1" type="date" value="2026-06-30" />
-									</label>
-								</div>
-							</div>
-						</div>
-
-						<!-- Status flow -->
-						<div class="flex items-center justify-between gap-4 px-1">
-							<div class="flex items-center gap-2">
-								<button class="btn btn-sm btn-primary">Order lines</button>
-								<button class="btn btn-sm btn-ghost">Other info</button>
-							</div>
-							<AdminStatusFlow statuses={statusFlow} currentIndex={0} />
-						</div>
-
-						<!-- Order lines -->
-						<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
-							<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40 flex items-center justify-between">
-								<h3 class="font-display text-lg">Order lines</h3>
-								<button class="btn btn-ghost btn-sm">
-									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-										<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-									</svg>
-									Add line
-								</button>
-							</div>
-							<OrderLinesTable lines={orderLines} />
-						</div>
-
-						<!-- Info cards -->
-						<div class="grid gap-6 lg:grid-cols-2">
-							<div class="rounded-2xl border border-base-300/70 bg-base-100/60 p-5">
-								<h3 class="font-display text-lg mb-2">Quotation templates</h3>
-								<p class="text-sm text-base-content/70">
-									Predefined templates for faster subscription setup.
-								</p>
-								<ul class="mt-4 grid gap-1 text-sm text-base-content/60">
-									<li>• Template name</li>
-									<li>• Validity days</li>
-									<li>• Recurring plan</li>
-									<li>• Product lines</li>
-								</ul>
-							</div>
-							<div class="rounded-2xl border border-base-300/70 bg-base-100/60 p-5">
-								<h3 class="font-display text-lg mb-2">Invoice management</h3>
-								<p class="text-sm text-base-content/70">
-									Invoices are generated automatically from subscriptions.
-								</p>
-								<div class="mt-4 text-sm text-base-content/60">
-									<p class="font-medium text-base-content text-xs uppercase tracking-wider mb-2">Status flow</p>
-									<p>Draft → Confirmed → Paid</p>
-								</div>
-							</div>
+						<div class="px-5 py-3 border-t border-base-300/60 bg-base-100/40 flex items-center justify-between">
+							<span class="text-xs text-base-content/50"><span x-text="filteredSubs.length"></span> subscriptions</span>
 						</div>
 					</div>
 				</div>

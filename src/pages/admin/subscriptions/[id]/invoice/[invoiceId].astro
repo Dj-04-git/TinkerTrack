@@ -1,0 +1,248 @@
+---
+export const prerender = false;
+import AdminLayout from '../../../../../layouts/AdminLayout.astro';
+import AccessGate from '../../../../../components/AccessGate.astro';
+import AdminPageHeader from '../../../../../components/admin/AdminPageHeader.astro';
+import AdminStatusFlow from '../../../../../components/admin/AdminStatusFlow.astro';
+
+const session = Astro.locals?.session ?? {};
+const isLoggedIn = Boolean(session.isLoggedIn);
+const isAdmin = Boolean(session.isAdmin);
+
+const { id, invoiceId } = Astro.params;
+
+// Mock invoice data - in reality this would come from DB
+const isNew = invoiceId === 'new';
+const invoiceNumber = isNew ? 'INV-2026-0042' : `INV-${invoiceId}`;
+
+// Mock subscription data for context
+const subscriptions: Record<string, any> = {
+	'SO002': {
+		id: 'SO002',
+		customer: 'Sunward Labs',
+		status: 'Confirmed',
+		plan: 'Annual Plan',
+		paymentTerm: 'Net 30',
+		orderLines: [
+			{ product: 'Enterprise Platform', quantity: 1, unitPrice: 24000, discount: 2400, taxes: 3240, amount: 24840 },
+			{ product: 'Priority Support', quantity: 1, unitPrice: 4800, discount: 0, taxes: 720, amount: 5520 }
+		]
+	}
+};
+
+const subscription = subscriptions[id ?? ''] ?? null;
+
+// Invoice statuses: Draft -> Confirmed (or Cancelled)
+const invoiceStatuses = ['Draft', 'Confirmed'];
+const currentInvoiceStatus = isNew ? 0 : 1;
+
+// Calculate totals from subscription
+const subtotal = subscription?.orderLines?.reduce((sum: number, line: any) => sum + (line.unitPrice * line.quantity), 0) ?? 0;
+const totalDiscount = subscription?.orderLines?.reduce((sum: number, line: any) => sum + line.discount, 0) ?? 0;
+const totalTaxes = subscription?.orderLines?.reduce((sum: number, line: any) => sum + line.taxes, 0) ?? 0;
+const grandTotal = subscription?.orderLines?.reduce((sum: number, line: any) => sum + line.amount, 0) ?? 0;
+
+// Invoice dates
+const today = new Date();
+const dueDate = new Date();
+dueDate.setDate(today.getDate() + 30);
+const invoiceDate = today.toISOString().split('T')[0];
+const formattedDueDate = dueDate.toISOString().split('T')[0];
+---
+
+<AdminLayout title={`TinkerTrack • ${isNew ? 'New Invoice' : invoiceNumber}`} isLoggedIn={isLoggedIn} activeTab="Subscriptions">
+	{
+		!isLoggedIn ? (
+			<AccessGate
+				badge="Login required"
+				title="Sign in to view invoice"
+				description="Admin workspaces are available after you sign in."
+			/>
+		) : !isAdmin ? (
+			<AccessGate
+				badge="Admin only"
+				title="Admin access required"
+				description="Only workspace admins can manage invoices."
+				linkHref="/profile"
+				linkText="Go to profile"
+				hint="Request admin access from your workspace owner."
+			/>
+		) : !subscription ? (
+			<div class="p-6 lg:p-8">
+				<div class="flex flex-col items-center justify-center py-16 text-center">
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-base-content/20 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+					</svg>
+					<h1 class="font-display text-2xl font-semibold mb-2">Subscription not found</h1>
+					<p class="text-base-content/60 mb-6">Cannot create an invoice for a subscription that doesn't exist.</p>
+					<a href="/admin/subscriptions" class="btn btn-primary btn-sm">Back to subscriptions</a>
+				</div>
+			</div>
+		) : (
+			<div class="p-6 lg:p-8">
+				<AdminPageHeader eyebrow={isNew ? 'Create invoice' : 'Invoice details'} title={invoiceNumber}>
+					<Fragment slot="lead">
+						<a href={`/admin/subscriptions/${id}`} class="btn btn-ghost btn-xs">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+							</svg>
+							Back to {id}
+						</a>
+					</Fragment>
+					<Fragment slot="actions">
+						{isNew ? (
+							<>
+								<button class="btn btn-ghost btn-sm text-error">Cancel Invoice</button>
+								<button class="btn btn-primary btn-sm">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+									</svg>
+									Confirm Invoice
+								</button>
+							</>
+						) : (
+							<button class="btn btn-ghost btn-sm">
+								<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+								</svg>
+								Print
+							</button>
+						)}
+					</Fragment>
+				</AdminPageHeader>
+
+				<div class="max-w-5xl grid gap-6">
+					<!-- Status flow -->
+					<div class="flex items-center justify-end">
+						<AdminStatusFlow statuses={invoiceStatuses} currentIndex={currentInvoiceStatus} />
+					</div>
+
+					<!-- Invoice status badge -->
+					{isNew && (
+						<div class="flex items-center gap-2">
+							<span class="badge badge-warning badge-lg">Draft</span>
+							<span class="text-sm text-base-content/60">This invoice is in draft state. Confirm to finalize or cancel to discard.</span>
+						</div>
+					)}
+
+					<!-- Invoice details -->
+					<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+						<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40">
+							<h3 class="font-display text-lg">Invoice Information</h3>
+						</div>
+						<div class="p-5 grid gap-5">
+							<div class="grid gap-5 sm:grid-cols-3">
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Invoice Number</span>
+									<input type="text" value={invoiceNumber} class="input input-bordered bg-base-200/60" readonly />
+								</label>
+
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Invoice Date</span>
+									<input type="date" value={invoiceDate} class="input input-bordered bg-base-100/80" />
+								</label>
+
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Due Date</span>
+									<input type="date" value={formattedDueDate} class="input input-bordered bg-base-100/80" />
+								</label>
+							</div>
+
+							<div class="grid gap-5 sm:grid-cols-2">
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Customer</span>
+									<input type="text" value={subscription.customer} class="input input-bordered bg-base-200/60" readonly />
+								</label>
+
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Subscription</span>
+									<input type="text" value={`${id} - ${subscription.plan}`} class="input input-bordered bg-base-200/60" readonly />
+								</label>
+							</div>
+						</div>
+					</div>
+
+					<!-- Invoice lines -->
+					<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+						<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40">
+							<h3 class="font-display text-lg">Invoice Lines</h3>
+							<p class="text-xs text-base-content/60 mt-0.5">Items from subscription {id}</p>
+						</div>
+						<div class="overflow-x-auto">
+							<table class="table">
+								<thead>
+									<tr class="text-xs uppercase tracking-widest text-base-content/50 border-b border-base-300/60">
+										<th class="font-medium">Product</th>
+										<th class="font-medium text-center">Quantity</th>
+										<th class="font-medium text-right">Unit Price</th>
+										<th class="font-medium text-right">Discount</th>
+										<th class="font-medium text-right">Taxes</th>
+										<th class="font-medium text-right">Amount</th>
+									</tr>
+								</thead>
+								<tbody>
+									{subscription.orderLines.map((line: any) => (
+										<tr class="border-b border-base-300/40">
+											<td class="font-medium">{line.product}</td>
+											<td class="text-center">{line.quantity}</td>
+											<td class="text-right font-mono text-sm">${line.unitPrice.toLocaleString()}</td>
+											<td class="text-right font-mono text-sm text-error">{line.discount > 0 ? `-$${line.discount.toLocaleString()}` : '—'}</td>
+											<td class="text-right font-mono text-sm text-base-content/70">${line.taxes.toLocaleString()}</td>
+											<td class="text-right font-mono text-sm font-medium">${line.amount.toLocaleString()}</td>
+										</tr>
+									))}
+								</tbody>
+								<tfoot class="bg-base-100/40">
+									<tr class="border-t border-base-300/60">
+										<td colspan="5" class="text-right font-medium text-base-content/70">Subtotal</td>
+										<td class="text-right font-mono">${subtotal.toLocaleString()}</td>
+									</tr>
+									<tr>
+										<td colspan="5" class="text-right font-medium text-error/70">Discount</td>
+										<td class="text-right font-mono text-error">-${totalDiscount.toLocaleString()}</td>
+									</tr>
+									<tr>
+										<td colspan="5" class="text-right font-medium text-base-content/70">Taxes</td>
+										<td class="text-right font-mono">${totalTaxes.toLocaleString()}</td>
+									</tr>
+									<tr class="border-t border-base-300/60">
+										<td colspan="5" class="text-right font-display text-lg">Total Due</td>
+										<td class="text-right font-mono text-lg font-bold">${grandTotal.toLocaleString()}</td>
+									</tr>
+								</tfoot>
+							</table>
+						</div>
+					</div>
+
+					<!-- Notes -->
+					<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+						<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40">
+							<h3 class="font-display text-lg">Notes</h3>
+						</div>
+						<div class="p-5">
+							<textarea class="textarea textarea-bordered bg-base-100/80 w-full h-24" placeholder="Add notes to appear on the invoice..."></textarea>
+						</div>
+					</div>
+
+					<!-- Action buttons -->
+					{isNew && (
+						<div class="flex items-center justify-between gap-3 pt-2">
+							<p class="text-sm text-base-content/50">
+								<span class="font-medium">Note:</span> Once confirmed, this invoice cannot be modified. If cancelled, a new state will appear as "Cancelled".
+							</p>
+							<div class="flex items-center gap-3">
+								<button class="btn btn-ghost btn-sm text-error">Cancel Invoice</button>
+								<button class="btn btn-primary btn-sm">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+									</svg>
+									Confirm Invoice
+								</button>
+							</div>
+						</div>
+					)}
+				</div>
+			</div>
+		)
+	}
+</AdminLayout>
