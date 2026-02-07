@@ -51,6 +51,32 @@ db.serialize(() => {
       FOREIGN KEY (planId) REFERENCES recurring_plans(id)
     )
   `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      subscriptionNumber TEXT UNIQUE,
+      customerName TEXT,
+      planId INTEGER,
+      startDate TEXT,
+      endDate TEXT,
+      paymentTerms TEXT,
+      status TEXT DEFAULT 'Draft'
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS subscription_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      subscriptionId INTEGER,
+      productId INTEGER,
+      quantity INTEGER,
+      unitPrice REAL,
+      tax REAL,
+      amount REAL,
+      FOREIGN KEY (subscriptionId) REFERENCES subscriptions(id)
+    )
+  `);
 });
 
 module.exports = db;
