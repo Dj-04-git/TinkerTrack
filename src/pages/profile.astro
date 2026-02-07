@@ -2,33 +2,118 @@
 export const prerender = false;
 import Layout from '../layouts/Layout.astro';
 import AccessGate from '../components/AccessGate.astro';
-
-const user = {
-	name: 'Elena Rivera',
-	email: 'elena@tinkertrack.io',
-	phone: '+1 (415) 555-2841',
-	address: '78 Market Street, San Francisco, CA',
-	company: 'Harbor SaaS Studio'
-};
-
-const quickStats = [
-	{ label: 'Active plans', value: '6' },
-	{ label: 'Monthly revenue', value: '$42.3k' },
-	{ label: 'Open invoices', value: '2' }
-];
-
-const recentOrders = [
-	{ name: 'Pulse Analytics Suite', status: 'Active', renewal: 'Mar 21, 2026' },
-	{ name: 'Retention Lab', status: 'Active', renewal: 'Apr 02, 2026' },
-	{ name: 'Quotient Billing Studio', status: 'Pending', renewal: 'Apr 18, 2026' }
-];
+import ProfileHeader from '../components/profile/ProfileHeader.astro';
+import QuickStatsCard from '../components/profile/QuickStatsCard.astro';
+import UserDetailsCard from '../components/profile/UserDetailsCard.astro';
+import RecentOrdersCard from '../components/profile/RecentOrdersCard.astro';
+import WorkspacePreferencesCard from '../components/profile/WorkspacePreferencesCard.astro';
+import EditProfileModal from '../components/profile/EditProfileModal.astro';
 
 const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
-const isAdmin = Boolean(session.isAdmin);
+const userId = session.userId || 1;
+
+let user = {
+	name: session.userName || 'User',
+	email: '',
+	phone: '',
+	location: '',
+	company: 'Your Company'
+};
+
+let quickStats = [
+	{ label: 'Active plans', value: '0' },
+	{ label: 'Total invoices', value: '0' }
+];
+
+let recentOrders: Array<{ name: string; status: string; renewal: string }> = [];
+
+// Fetch user data from database if logged in
+if (isLoggedIn && session?.userId) {
+	try {
+		console.log('Fetching profile for userId:', session.userId);
+
+		const profileRes = await fetch(`http://localhost:3000/auth/profile/${session.userId}`, {
+			headers: {
+				'Authorization': `Bearer ${session.token}`
+			}
+		});
+
+		console.log('Profile response status:', profileRes.status);
+
+		if (profileRes.ok) {
+			const profileData = await profileRes.json();
+			console.log('Profile data:', profileData);
+			if (profileData.user) {
+				user = {
+					name: profileData.user.name || 'User',
+					email: profileData.user.email || '',
+					phone: profileData.user.phone || '',
+					location: profileData.user.location || '',
+					company: profileData.user.company || 'Your Company'
+				};
+			}
+		} else {
+			console.error('Profile fetch failed:', profileRes.statusText);
+		}
+
+		// Fetch subscriptions for active plans count
+		const subsRes = await fetch(`http://localhost:3000/subscriptions?userId=${userId}`, {
+			headers: {
+				'Authorization': `Bearer ${session.token}`
+			}
+		});
+
+		console.log('Subscriptions response status:', subsRes.status);
+
+		let activePlansCount = 0;
+		if (subsRes.ok) {
+			const subsData = await subsRes.json();
+			console.log('Subscriptions data:', subsData);
+			if (Array.isArray(subsData)) {
+				recentOrders = subsData.slice(0, 3).map(sub => ({
+					name: sub.productNames || sub.productName || 'Subscription',
+					status: sub.status || 'Active',
+					renewal: sub.endDate ? new Date(sub.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
+				}));
+
+				// Count active/paid subscriptions as active plans
+				activePlansCount = subsData.filter(s => s.status === 'Active' || s.status === 'Paid').length;
+			}
+		} else {
+			console.error('Subscriptions fetch failed:', subsRes.statusText);
+		}
+
+		// Fetch invoice count for user
+		let invoiceCount = 0;
+		try {
+			const invoiceRes = await fetch(`http://localhost:3000/invoices/count/${userId}`, {
+				headers: {
+					'Authorization': `Bearer ${session.token}`
+				}
+			});
+			if (invoiceRes.ok) {
+				const invoiceData = await invoiceRes.json();
+				invoiceCount = invoiceData.count || 0;
+			}
+		} catch (e) {
+			console.error('Error fetching invoice count:', e);
+		}
+
+		quickStats = [
+			{ label: 'Active plans', value: activePlansCount.toString() },
+			{ label: 'Total invoices', value: invoiceCount.toString() }
+		];
+
+	} catch (error) {
+		console.error('Error fetching profile data:', error);
+	}
+} else {
+	console.log('Not logged in or no userId. Session:', session);
+}
 ---
 
-<Layout title="TinkerTrack • Profile" isLoggedIn={isLoggedIn} isAdmin={isAdmin}>
+<Layout title="TinkerTrack • Profile" isLoggedIn={isLoggedIn}>
 	{
 		isLoggedIn ? (
 			<section class="relative flex-1 overflow-hidden">
@@ -37,86 +122,25 @@ const isAdmin = Boolean(session.isAdmin);
 					<div class="absolute bottom-0 left-10 h-80 w-80 rounded-full bg-accent/20 blur-3xl"></div>
 				</div>
 
+				<EditProfileModal user={user} />
+
 				<div class="mx-auto grid max-w-6xl gap-8 px-6 py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-start">
 					<div class="grid gap-6">
-				<div class="flex flex-wrap items-center justify-between gap-4">
-					<div>
-						<p class="badge badge-outline">Account profile</p>
-						<h1 class="font-display mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
-							{user.name}
-						</h1>
-						<p class="mt-3 text-base-content/70">
-							Manage your subscription workspace, billing preferences, and team details.
-						</p>
-					</div>
-					<div class="flex items-center gap-3">
-						<button class="btn btn-outline btn-sm">Edit profile</button>
-						<button class="btn btn-primary btn-sm">View billing</button>
-					</div>
-				</div>
+						<ProfileHeader userName={user.name} />
 
-				<div class="grid gap-4 sm:grid-cols-3">
-					{quickStats.map((stat) => (
-						<div class="rounded-2xl border border-base-200/70 bg-base-100/70 p-4 text-sm shadow-sm">
-							<p class="text-base-content/60">{stat.label}</p>
-							<p class="mt-2 text-lg font-semibold">{stat.value}</p>
-						</div>
-					))}
-				</div>
-
-				<div class="card bg-base-200/70 shadow-2xl backdrop-blur">
-					<div class="card-body gap-4">
-						<h2 class="font-display text-2xl">User details</h2>
-						<div class="grid gap-4 text-sm text-base-content/70">
-							<div class="flex items-center justify-between border-b border-base-300/60 pb-3">
-								<span class="text-base-content/60">Company</span>
-								<span class="font-medium text-base-content">{user.company}</span>
-							</div>
-							<div class="flex items-center justify-between border-b border-base-300/60 pb-3">
-								<span class="text-base-content/60">Email</span>
-								<span class="font-medium text-base-content">{user.email}</span>
-							</div>
-							<div class="flex items-center justify-between border-b border-base-300/60 pb-3">
-								<span class="text-base-content/60">Phone</span>
-								<span class="font-medium text-base-content">{user.phone}</span>
-							</div>
-							<div class="flex items-center justify-between">
-								<span class="text-base-content/60">Address</span>
-								<span class="font-medium text-base-content">{user.address}</span>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<div class="grid gap-6">
-				<div class="card bg-base-200/70 shadow-xl backdrop-blur">
-					<div class="card-body gap-4">
-						<div class="flex items-center justify-between">
-							<h2 class="font-display text-2xl">My orders</h2>
-							<a class="link-hover text-sm" href="/orders">View all</a>
-						</div>
-						<div class="grid gap-3">
-							{recentOrders.map((order) => (
-								<div class="rounded-2xl border border-base-300/70 bg-base-100/70 p-4">
-									<p class="font-medium">{order.name}</p>
-									<div class="mt-2 flex items-center justify-between text-sm text-base-content/60">
-										<span>{order.status}</span>
-										<span>Renews {order.renewal}</span>
-									</div>
-								</div>
+						<div class="grid gap-4 sm:grid-cols-2">
+							{quickStats.map((stat) => (
+								<QuickStatsCard label={stat.label} value={stat.value} />
 							))}
 						</div>
-					</div>
-				</div>
 
-				<div class="rounded-3xl border border-base-200/70 bg-base-100/70 p-6 shadow-sm">
-					<h3 class="font-display text-xl">Workspace preferences</h3>
-					<p class="mt-2 text-sm text-base-content/70">
-						Set tax locations, invoice templates, and team permissions from one place.
-					</p>
-					<button class="btn btn-outline btn-sm mt-4">Open settings</button>
-				</div>
+						<UserDetailsCard user={user} />
+					</div>
+
+					<div class="grid gap-6">
+						<RecentOrdersCard orders={recentOrders} />
+						<WorkspacePreferencesCard />
+					</div>
 				</div>
 			</section>
 		) : (
@@ -128,3 +152,91 @@ const isAdmin = Boolean(session.isAdmin);
 		)
 	}
 </Layout>
+
+<!-- Pass user data to client-side script -->
+<script define:vars={{ userId, token: session.token }}>
+	window.profileUserId = userId;
+	window.profileToken = token;
+</script>
+
+<script>
+	const userId = (window as any).profileUserId;
+	const token = (window as any).profileToken;
+
+	// Open edit modal
+	const openEditModalBtn = document.getElementById('openEditModalBtn');
+	const editProfileModal = document.getElementById('editProfileModal') as HTMLDialogElement;
+
+	openEditModalBtn?.addEventListener('click', () => {
+		editProfileModal?.showModal();
+	});
+
+	// Handle form submission
+	const editProfileForm = document.getElementById('editProfileForm');
+	editProfileForm?.addEventListener('submit', async (e) => {
+		e.preventDefault();
+
+		const saveBtn = document.getElementById('saveProfileBtn') as HTMLButtonElement;
+		saveBtn.disabled = true;
+		saveBtn.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Saving...';
+
+		const name = (document.getElementById('editName') as HTMLInputElement).value;
+		const phone = (document.getElementById('editPhone') as HTMLInputElement).value;
+		const location = (document.getElementById('editLocation') as HTMLInputElement).value;
+		const about = (document.getElementById('editAbout') as HTMLTextAreaElement).value;
+
+		try {
+			const response = await fetch(`http://localhost:3000/auth/profile/${userId}`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token}`
+				},
+				body: JSON.stringify({ name, phone, location, about })
+			});
+
+			const data = await response.json();
+
+			if (response.ok) {
+				// Update displayed values on the page
+				document.getElementById('displayName')!.textContent = name;
+				document.getElementById('detailName')!.textContent = name;
+				document.getElementById('detailPhone')!.textContent = phone || 'Not provided';
+				document.getElementById('detailLocation')!.textContent = location || 'Not provided';
+				document.getElementById('detailAbout')!.textContent = about || 'Not provided';
+
+				// Close modal
+				editProfileModal?.close();
+
+				// Show success toast
+				showToast('Profile updated successfully!');
+			} else {
+				showToast(data.error || 'Failed to update profile', 'error');
+			}
+		} catch (error) {
+			console.error('Error updating profile:', error);
+			showToast('Failed to connect to server', 'error');
+		} finally {
+			saveBtn.disabled = false;
+			saveBtn.innerHTML = 'Save Changes';
+		}
+	});
+
+	function showToast(message: string, type: 'success' | 'error' = 'success') {
+		const toast = document.createElement('div');
+		toast.className = 'toast toast-end toast-bottom z-50';
+		toast.innerHTML = `
+			<div class="alert ${type === 'success' ? 'alert-success' : 'alert-error'} shadow-lg">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${type === 'success' ? 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' : 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'}" />
+				</svg>
+				<span>${message}</span>
+			</div>
+		`;
+		document.body.appendChild(toast);
+
+		setTimeout(() => {
+			toast.remove();
+		}, 3000);
+	}
+</script>

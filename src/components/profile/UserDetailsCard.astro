@@ -1,0 +1,41 @@
+---
+interface Props {
+	user: {
+		name: string;
+		email: string;
+		phone: string;
+		location: string;
+		about?: string;
+	};
+}
+
+const { user } = Astro.props;
+---
+
+<div class="card bg-base-200/70 shadow-2xl backdrop-blur">
+	<div class="card-body gap-4">
+		<h2 class="font-display text-2xl">User details</h2>
+		<div class="grid gap-4 text-sm text-base-content/70">
+			<div class="flex items-center justify-between border-b border-base-300/60 pb-3">
+				<span class="text-base-content/60">Name</span>
+				<span class="font-medium text-base-content" id="detailName">{user.name}</span>
+			</div>
+			<div class="flex items-center justify-between border-b border-base-300/60 pb-3">
+				<span class="text-base-content/60">Email</span>
+				<span class="font-medium text-base-content" id="detailEmail">{user.email}</span>
+			</div>
+			<div class="flex items-center justify-between border-b border-base-300/60 pb-3">
+				<span class="text-base-content/60">Phone</span>
+				<span class="font-medium text-base-content" id="detailPhone">{user.phone || 'Not provided'}</span>
+			</div>
+			<div class="flex items-center justify-between border-b border-base-300/60 pb-3">
+				<span class="text-base-content/60">Location</span>
+				<span class="font-medium text-base-content" id="detailLocation">{user.location || 'Not provided'}</span>
+			</div>
+			<div class="flex items-center justify-between">
+				<span class="text-base-content/60">About</span>
+				<span class="font-medium text-base-content" id="detailAbout">{user.about || 'Not provided'}</span>
+			</div>
+		</div>
+	</div>
+</div>

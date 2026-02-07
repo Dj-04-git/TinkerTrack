@@ -1,0 +1,38 @@
+---
+interface Order {
+	name: string;
+	status: string;
+	renewal: string;
+}
+
+interface Props {
+	orders: Order[];
+}
+
+const { orders } = Astro.props;
+---
+
+<div class="card bg-base-200/70 shadow-xl backdrop-blur">
+	<div class="card-body gap-4">
+		<div class="flex items-center justify-between">
+			<h2 class="font-display text-2xl">My orders</h2>
+			<a class="link-hover text-sm" href="/orders">View all</a>
+		</div>
+		<div class="grid gap-3">
+			{orders.length > 0 ? orders.map((order) => (
+				<div class="rounded-2xl border border-base-300/70 bg-base-100/70 p-4">
+					<p class="font-medium">{order.name}</p>
+					<div class="mt-2 flex items-center justify-between text-sm text-base-content/60">
+						<span>{order.status}</span>
+						<span>Renews {order.renewal}</span>
+					</div>
+				</div>
+			)) : (
+				<div class="text-center py-6 text-base-content/60">
+					<p>No orders yet</p>
+					<a href="/shop" class="btn btn-primary btn-sm mt-2">Browse Products</a>
+				</div>
+			)}
+		</div>
+	</div>
+</div>

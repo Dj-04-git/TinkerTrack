@@ -1,0 +1,61 @@
+---
+interface Props {
+	user: {
+		name: string;
+		email: string;
+		phone: string;
+		location: string;
+		about?: string;
+	};
+}
+
+const { user } = Astro.props;
+---
+
+<dialog id="editProfileModal" class="modal">
+	<div class="modal-box">
+		<h3 class="font-display text-2xl font-bold">Edit Profile</h3>
+		<form id="editProfileForm" class="mt-4 grid gap-4">
+			<div class="form-control">
+				<label class="label">
+					<span class="label-text">Name</span>
+				</label>
+				<input type="text" id="editName" name="name" class="input input-bordered" value={user.name} required />
+			</div>
+			<div class="form-control">
+				<label class="label">
+					<span class="label-text">Email</span>
+				</label>
+				<input type="email" id="editEmail" class="input input-bordered bg-base-200" value={user.email} disabled />
+				<label class="label">
+					<span class="label-text-alt text-base-content/50">Email cannot be changed</span>
+				</label>
+			</div>
+			<div class="form-control">
+				<label class="label">
+					<span class="label-text">Phone</span>
+				</label>
+				<input type="tel" id="editPhone" name="phone" class="input input-bordered" value={user.phone} pattern="[0-9]{10}" title="Phone number must be 10 digits" />
+			</div>
+			<div class="form-control">
+				<label class="label">
+					<span class="label-text">Location</span>
+				</label>
+				<input type="text" id="editLocation" name="location" class="input input-bordered" value={user.location} />
+			</div>
+			<div class="form-control">
+				<label class="label">
+					<span class="label-text">About</span>
+				</label>
+				<textarea id="editAbout" name="about" class="textarea textarea-bordered" rows="3">{user.about || ''}</textarea>
+			</div>
+			<div class="modal-action">
+				<button type="button" class="btn btn-ghost" onclick="document.getElementById('editProfileModal').close()">Cancel</button>
+				<button type="submit" class="btn btn-primary" id="saveProfileBtn">Save Changes</button>
+			</div>
+		</form>
+	</div>
+	<form method="dialog" class="modal-backdrop">
+		<button>close</button>
+	</form>
+</dialog>
