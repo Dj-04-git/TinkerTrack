@@ -1,0 +1,7 @@
+---
+export const prerender = false;
+import { SESSION_COOKIE_NAME } from '../lib/auth.js';
+
+Astro.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+return Astro.redirect('/login');
+---
