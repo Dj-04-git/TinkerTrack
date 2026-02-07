@@ -1,4 +1,4 @@
-const db = require("../../db/db").default;
+const db = require("../../db/db");
 
 // CREATE QUOTATION TEMPLATE (Admin)
 exports.createTemplate = (req, res) => {

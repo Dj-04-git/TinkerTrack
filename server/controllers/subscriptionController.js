@@ -1,4 +1,4 @@
-const db = require("../../db/db").default;
+const db = require("../../db/db");
 const { v4: uuidv4 } = require("uuid");
 
 // CREATE SUBSCRIPTION (Draft)
