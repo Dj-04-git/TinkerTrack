@@ -38,6 +38,11 @@ export function verifyJwtToken(token) {
     }
 }
 
+function getAdminEmail() {
+	const envValue = (import.meta.env?.ADMIN_EMAIL ?? process.env.ADMIN_EMAIL ?? '').trim();
+	return envValue ? envValue.toLowerCase() : '';
+}
+
 export async function resolveSession(cookies) {
     const stored = parseSessionCookie(cookies);
     if (!stored?.token) {

@@ -1,0 +1,19 @@
+---
+const { eyebrow = '', title = '', description = '' } = Astro.props;
+const hasLead = Astro.slots?.has?.('lead');
+const hasActions = Astro.slots?.has?.('actions');
+---
+
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+	<div>
+		{hasLead && <div class="mb-2"><slot name="lead" /></div>}
+		{eyebrow && <p class="text-xs uppercase tracking-widest text-base-content/50 mb-2">{eyebrow}</p>}
+		{title && <h1 class="font-display text-2xl sm:text-3xl font-semibold">{title}</h1>}
+		{description && <p class="text-sm text-base-content/60 mt-2">{description}</p>}
+	</div>
+	{hasActions && (
+		<div class="flex items-center gap-2">
+			<slot name="actions" />
+		</div>
+	)}
+</div>

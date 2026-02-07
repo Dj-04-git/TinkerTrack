@@ -6,6 +6,7 @@ import AccessGate from '../components/AccessGate.astro';
 
 const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
+const isAdmin = Boolean(session.isAdmin);
 
 // Get subscription number from query param
 const subscriptionNumber = Astro.url.searchParams.get('subscription');
@@ -28,7 +29,7 @@ if (subscriptionNumber) {
 }
 ---
 
-<Layout title="TinkerTrack • Order success" isLoggedIn={isLoggedIn}>
+<Layout title="TinkerTrack • Order success" isLoggedIn={isLoggedIn} isAdmin={isAdmin}>
 	{
 		isLoggedIn ? (
 			<section class="relative overflow-hidden">

@@ -17,6 +17,7 @@ export const getStaticPaths = () =>
 
 const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
+const isAdmin = Boolean(session.isAdmin);
 
 const { order, invoice } = Astro.props;
 const activeOrder = order ?? getOrderById(Astro.params.id);
@@ -26,7 +27,7 @@ const formatCurrency = (value) => (value < 0 ? `-$${Math.abs(value)}` : `$${valu
 const isPaid = activeInvoice?.status === 'Paid';
 ---
 
-<Layout title={`TinkerTrack • ${activeInvoice?.number ?? 'Invoice'}`} isLoggedIn={isLoggedIn}>
+<Layout title={`TinkerTrack • ${activeInvoice?.number ?? 'Invoice'}`} isLoggedIn={isLoggedIn} isAdmin={isAdmin}>
 	{
 		isLoggedIn ? (
 			<section class="relative overflow-hidden">

@@ -1,0 +1,69 @@
+---
+const { status = 'Draft', product = {} } = Astro.props;
+
+const defaultProduct = {
+	name: product.name ?? '',
+	productType: product.productType ?? '',
+	tax: product.tax ?? '',
+	salesPrice: product.salesPrice ?? '',
+	costPrice: product.costPrice ?? ''
+};
+---
+
+<div class="grid gap-5">
+	<label class="form-control w-full">
+		<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Product name</span>
+		<input
+			name="productName"
+			type="text"
+			placeholder="Enter product name"
+			value={defaultProduct.name}
+			class="input input-bordered bg-base-100/80"
+		/>
+	</label>
+
+	<div class="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+		<label class="form-control">
+			<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Product type</span>
+			<select name="productType" class="select select-bordered bg-base-100/80">
+				<option value="" disabled selected={!defaultProduct.productType}>Select type</option>
+				<option selected={defaultProduct.productType === 'Subscription'}>Subscription</option>
+				<option selected={defaultProduct.productType === 'Service'}>Service</option>
+				<option selected={defaultProduct.productType === 'Consumable'}>Consumable</option>
+			</select>
+		</label>
+
+		<label class="form-control">
+			<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Tax (%)</span>
+			<input
+				name="tax"
+				type="text"
+				placeholder="e.g. 15%"
+				value={defaultProduct.tax}
+				class="input input-bordered bg-base-100/80"
+			/>
+		</label>
+
+		<label class="form-control">
+			<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Sales price</span>
+			<input
+				name="salesPrice"
+				type="text"
+				placeholder="e.g. $2,400"
+				value={defaultProduct.salesPrice}
+				class="input input-bordered bg-base-100/80"
+			/>
+		</label>
+
+		<label class="form-control">
+			<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Cost price</span>
+			<input
+				name="costPrice"
+				type="text"
+				placeholder="e.g. $780"
+				value={defaultProduct.costPrice}
+				class="input input-bordered bg-base-100/80"
+			/>
+		</label>
+	</div>
+</div>

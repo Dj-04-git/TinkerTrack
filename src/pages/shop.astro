@@ -4,6 +4,7 @@ import Layout from '../layouts/Layout.astro';
 
 const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
+const isAdmin = Boolean(session.isAdmin);
 
 // Fetch products from database via backend API
 let products = [];
@@ -24,7 +25,7 @@ try {
 const productTypes = ['All', ...new Set(products.map(p => p.productType).filter(Boolean))];
 ---
 
-<Layout title="TinkerTrack • Shop" isLoggedIn={isLoggedIn}>
+<Layout title="TinkerTrack • Shop" isLoggedIn={isLoggedIn} isAdmin={isAdmin}>
 	<section class="relative overflow-hidden">
 		<div class="pointer-events-none absolute inset-0">
 			<div class="absolute -top-28 left-10 h-72 w-72 rounded-full bg-primary/20 blur-3xl"></div>

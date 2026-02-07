@@ -1,0 +1,61 @@
+---
+export const prerender = false;
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import AccessGate from '../../components/AccessGate.astro';
+import ProductListTable from '../../components/admin/ProductListTable.astro';
+import AdminPageHeader from '../../components/admin/AdminPageHeader.astro';
+
+const session = Astro.locals?.session ?? {};
+const isLoggedIn = Boolean(session.isLoggedIn);
+const isAdmin = Boolean(session.isAdmin);
+
+// Mock product data (server-side) - same as detail page
+const products = [
+	{ id: 1, name: 'Fresh Milk Delivery', type: 'Service', salesPrice: 12.99, costPrice: 8.50 },
+	{ id: 2, name: 'Organic Vegetable Box', type: 'Goods', salesPrice: 35.00, costPrice: 22.00 },
+	{ id: 3, name: 'Weekly Bread Basket', type: 'Goods', salesPrice: 18.50, costPrice: 11.00 },
+	{ id: 4, name: 'Coffee Bean Subscription', type: 'Goods', salesPrice: 24.99, costPrice: 15.00 },
+	{ id: 5, name: 'Laundry Service', type: 'Service', salesPrice: 45.00, costPrice: 25.00 },
+];
+---
+
+<AdminLayout title="TinkerTrack • Products" isLoggedIn={isLoggedIn} activeTab="Products">
+	{
+		!isLoggedIn ? (
+			<AccessGate
+				badge="Login required"
+				title="Sign in to manage products"
+				description="Admin product pages are available after you sign in."
+			/>
+		) : !isAdmin ? (
+			<AccessGate
+				badge="Admin only"
+				title="Admin access required"
+				description="Only admins can manage product catalogs."
+				linkHref="/profile"
+				linkText="Go to profile"
+				hint="Request admin access from your workspace owner if you need to edit products."
+			/>
+		) : (
+			<div class="p-6 lg:p-8">
+				<AdminPageHeader eyebrow="Product management" title="Products">
+					<Fragment slot="actions">
+						<a href="/admin/products/new" class="btn btn-primary btn-sm">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+							</svg>
+							New product
+						</a>
+					</Fragment>
+				</AdminPageHeader>
+
+				<!-- Product list -->
+				<div class="max-w-4xl">
+					<ProductListTable products={products} />
+				</div>
+			</div>
+		)
+	}
+</AdminLayout>
+
+<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>

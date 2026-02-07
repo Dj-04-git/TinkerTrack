@@ -1,93 +1,88 @@
 ---
-const { isLoggedIn = false, userName = "" } = Astro.props;
-
-// Get first letter of name (uppercase)
-const getInitial = (name: string) => {
-return name ? name.charAt(0).toUpperCase() : "U";
-};
-
-const initial = getInitial(userName);
+const { isLoggedIn = false, isAdmin = false } = Astro.props;
 ---
 
 <header class="sticky top-0 z-20 border-b border-base-200/70 bg-base-100/80 backdrop-blur">
-<div class="mx-auto max-w-6xl px-6">
-<div class="navbar px-0">
-<div class="navbar-start">
-<div class="dropdown">
-<label tabindex="0" class="btn btn-ghost btn-circle lg:hidden">
-<svg
-xmlns="http://www.w3.org/2000/svg"
-class="h-5 w-5"
-fill="none"
-viewBox="0 0 24 24"
-stroke="currentColor"
->
-<path
-stroke-linecap="round"
-stroke-linejoin="round"
-stroke-width="1.5"
-d="M4 6h16M4 12h16M4 18h16"
-/>
-</svg>
-</label>
-<ul
-tabindex="0"
-class="menu dropdown-content mt-3 w-52 rounded-box bg-base-100/95 p-2 shadow"
->
-<li><a href="/">Home</a></li>
-<li><a href="/shop">Shop</a></li>
-{
-isLoggedIn ? (
-<>
-<li><a href="/orders">My orders</a></li>
-<li><a href="/cart">Cart</a></li>
-<li><a href="/profile">Profile</a></li>
-<li><a href="/logout">Logout</a></li>
-</>
-) : (
-<>
-<li><a href="/login">Login</a></li>
-<li><a href="/register">Register</a></li>
-</>
-)
-}
-</ul>
-</div>
-<a class="flex items-center gap-3 font-display text-xl tracking-tight" href="/">
-<img src="/favicon.svg" alt="TinkerTrack" class="h-6 w-6" />
-<span>TinkerTrack</span>
-</a>
-</div>
-<div class="navbar-center hidden lg:flex">
-<ul class="menu menu-horizontal gap-2">
-<li><a href="/">Home</a></li>
-<li><a href="/shop">Shop</a></li>
-{isLoggedIn && <li><a href="/orders">My orders</a></li>}
-{isLoggedIn && <li><a href="/cart">Cart</a></li>}
-</ul>
-</div>
-<div class="navbar-end gap-3">
-{
-isLoggedIn ? (
-<>
-<a class="btn btn-ghost btn-sm" href="/logout">Logout</a>
-<a class="btn btn-ghost" href="/profile" aria-label="Profile">
-<div class="avatar placeholder">
-<div class="bg-primary text-primary-content w-12 h-12 rounded-full flex items-center justify-center">
-<span class="text-xl font-bold leading-none">{initial}</span>
-</div>
-</div>
-</a>
-</>
-) : (
-<div class="hidden items-center gap-2 lg:flex">
-<a class="btn btn-ghost" href="/login">Login</a>
-<a class="btn btn-primary" href="/register">Register</a>
-</div>
-)
-}
-</div>
-</div>
-</div>
+	<div class="mx-auto max-w-6xl px-6">
+		<div class="navbar px-0">
+			<div class="navbar-start">
+				<div class="dropdown">
+					<label tabindex="0" class="btn btn-ghost btn-circle lg:hidden">
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="h-5 w-5"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="1.5"
+								d="M4 6h16M4 12h16M4 18h16"
+							/>
+						</svg>
+					</label>
+					<ul
+						tabindex="0"
+						class="menu dropdown-content mt-3 w-52 rounded-box bg-base-100/95 p-2 shadow"
+					>
+						<li><a href="/">Home</a></li>
+						<li><a href="/shop">Shop</a></li>
+						{
+							isLoggedIn ? (
+								<>
+									<li><a href="/orders">My orders</a></li>
+									<li><a href="/cart">Cart</a></li>
+									<li><a href="/profile">Profile</a></li>
+									{isAdmin && <li><a href="/admin/subscriptions" class="text-primary font-medium">Dashboard</a></li>}
+									<li><a href="/logout">Logout</a></li>
+								</>
+							) : (
+								<>
+									<li><a href="/login">Login</a></li>
+									<li><a href="/register">Register</a></li>
+								</>
+							)
+						}
+					</ul>
+				</div>
+				<a class="flex items-center gap-3 font-display text-xl tracking-tight" href="/">
+					<img src="/favicon.svg" alt="TinkerTrack" class="h-6 w-6" />
+					<span>TinkerTrack</span>
+				</a>
+			</div>
+			<div class="navbar-center hidden lg:flex">
+				<ul class="menu menu-horizontal gap-2">
+					<li><a href="/">Home</a></li>
+					<li><a href="/shop">Shop</a></li>
+					{isLoggedIn && <li><a href="/orders">My orders</a></li>}
+					{isLoggedIn && <li><a href="/cart">Cart</a></li>}
+					{isAdmin && <li><a href="/admin/subscriptions" class="text-primary font-medium">Dashboard</a></li>}
+				</ul>
+			</div>
+			<div class="navbar-end gap-3">
+				{
+					isLoggedIn ? (
+						<>
+							<a class="btn btn-ghost btn-sm" href="/logout">Logout</a>
+							<a class="btn btn-ghost btn-circle" href="/profile" aria-label="Profile">
+								<div class="avatar placeholder">
+									<div class="bg-primary text-primary-content w-10 rounded-full">
+										<span class="text-sm">TR</span>
+									</div>
+								</div>
+							</a>
+						</>
+					) : (
+						<div class="hidden items-center gap-2 lg:flex">
+							<a class="btn btn-ghost" href="/login">Login</a>
+							<a class="btn btn-primary" href="/register">Register</a>
+						</div>
+					)
+				}
+			</div>
+		</div>
+	</div>
 </header>
 

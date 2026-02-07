@@ -2,108 +2,114 @@
 export const prerender = false;
 import Layout from '../layouts/Layout.astro';
 import AccessGate from '../components/AccessGate.astro';
+import ProfileHeader from '../components/profile/ProfileHeader.astro';
+import QuickStatsCard from '../components/profile/QuickStatsCard.astro';
+import UserDetailsCard from '../components/profile/UserDetailsCard.astro';
+import RecentOrdersCard from '../components/profile/RecentOrdersCard.astro';
+import WorkspacePreferencesCard from '../components/profile/WorkspacePreferencesCard.astro';
+import EditProfileModal from '../components/profile/EditProfileModal.astro';
 
 const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
 const userId = session.userId || 1;
 
 let user = {
-name: session.userName || 'User',
-email: '',
-phone: '',
-location: '',
-company: 'Your Company'
+	name: session.userName || 'User',
+	email: '',
+	phone: '',
+	location: '',
+	company: 'Your Company'
 };
 
 let quickStats = [
-{ label: 'Active plans', value: '0' },
-{ label: 'Total invoices', value: '0' }
+	{ label: 'Active plans', value: '0' },
+	{ label: 'Total invoices', value: '0' }
 ];
 
-let recentOrders = [];
+let recentOrders: Array<{ name: string; status: string; renewal: string }> = [];
 
 // Fetch user data from database if logged in
 if (isLoggedIn && session?.userId) {
-try {
-console.log('Fetching profile for userId:', session.userId);
+	try {
+		console.log('Fetching profile for userId:', session.userId);
 
-const profileRes = await fetch(`http://localhost:3000/auth/profile/${session.userId}`, {
-headers: {
-'Authorization': `Bearer ${session.token}`
-}
-});
+		const profileRes = await fetch(`http://localhost:3000/auth/profile/${session.userId}`, {
+			headers: {
+				'Authorization': `Bearer ${session.token}`
+			}
+		});
 
-console.log('Profile response status:', profileRes.status);
+		console.log('Profile response status:', profileRes.status);
 
-if (profileRes.ok) {
-const profileData = await profileRes.json();
-console.log('Profile data:', profileData);
-if (profileData.user) {
-user = {
-name: profileData.user.name || 'User',
-email: profileData.user.email || '',
-phone: profileData.user.phone || '',
-location: profileData.user.location || '',
-company: profileData.user.company || 'Your Company'
-};
-}
+		if (profileRes.ok) {
+			const profileData = await profileRes.json();
+			console.log('Profile data:', profileData);
+			if (profileData.user) {
+				user = {
+					name: profileData.user.name || 'User',
+					email: profileData.user.email || '',
+					phone: profileData.user.phone || '',
+					location: profileData.user.location || '',
+					company: profileData.user.company || 'Your Company'
+				};
+			}
+		} else {
+			console.error('Profile fetch failed:', profileRes.statusText);
+		}
+
+		// Fetch subscriptions for active plans count
+		const subsRes = await fetch(`http://localhost:3000/subscriptions?userId=${userId}`, {
+			headers: {
+				'Authorization': `Bearer ${session.token}`
+			}
+		});
+
+		console.log('Subscriptions response status:', subsRes.status);
+
+		let activePlansCount = 0;
+		if (subsRes.ok) {
+			const subsData = await subsRes.json();
+			console.log('Subscriptions data:', subsData);
+			if (Array.isArray(subsData)) {
+				recentOrders = subsData.slice(0, 3).map(sub => ({
+					name: sub.productNames || sub.productName || 'Subscription',
+					status: sub.status || 'Active',
+					renewal: sub.endDate ? new Date(sub.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
+				}));
+
+				// Count active/paid subscriptions as active plans
+				activePlansCount = subsData.filter(s => s.status === 'Active' || s.status === 'Paid').length;
+			}
+		} else {
+			console.error('Subscriptions fetch failed:', subsRes.statusText);
+		}
+
+		// Fetch invoice count for user
+		let invoiceCount = 0;
+		try {
+			const invoiceRes = await fetch(`http://localhost:3000/invoices/count/${userId}`, {
+				headers: {
+					'Authorization': `Bearer ${session.token}`
+				}
+			});
+			if (invoiceRes.ok) {
+				const invoiceData = await invoiceRes.json();
+				invoiceCount = invoiceData.count || 0;
+			}
+		} catch (e) {
+			console.error('Error fetching invoice count:', e);
+		}
+
+		quickStats = [
+			{ label: 'Active plans', value: activePlansCount.toString() },
+			{ label: 'Total invoices', value: invoiceCount.toString() }
+		];
+
+	} catch (error) {
+		console.error('Error fetching profile data:', error);
+	}
 } else {
-console.error('Profile fetch failed:', profileRes.statusText);
-}
-
-// Fetch subscriptions for active plans count
-const subsRes = await fetch(`http://localhost:3000/subscriptions?userId=${userId}`, {
-headers: {
-'Authorization': `Bearer ${session.token}`
-}
-});
-
-console.log('Subscriptions response status:', subsRes.status);
-
-let activePlansCount = 0;
-if (subsRes.ok) {
-const subsData = await subsRes.json();
-console.log('Subscriptions data:', subsData);
-if (Array.isArray(subsData)) {
-recentOrders = subsData.slice(0, 3).map(sub => ({
-name: sub.productNames || sub.productName || 'Subscription',
-status: sub.status || 'Active',
-renewal: sub.endDate ? new Date(sub.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
-}));
-
-// Count active/paid subscriptions as active plans
-activePlansCount = subsData.filter(s => s.status === 'Active' || s.status === 'Paid').length;
-}
-} else {
-console.error('Subscriptions fetch failed:', subsRes.statusText);
-}
-
-// Fetch invoice count for user
-let invoiceCount = 0;
-try {
-const invoiceRes = await fetch(`http://localhost:3000/invoices/count/${userId}`, {
-headers: {
-'Authorization': `Bearer ${session.token}`
-}
-});
-if (invoiceRes.ok) {
-const invoiceData = await invoiceRes.json();
-invoiceCount = invoiceData.count || 0;
-}
-} catch (e) {
-console.error('Error fetching invoice count:', e);
-}
-
-quickStats = [
-{ label: 'Active plans', value: activePlansCount.toString() },
-{ label: 'Total invoices', value: invoiceCount.toString() }
-];
-
-} catch (error) {
-console.error('Error fetching profile data:', error);
-}
-} else {
-console.log('Not logged in or no userId. Session:', session);
+	console.log('Not logged in or no userId. Session:', session);
 }
 ---
 

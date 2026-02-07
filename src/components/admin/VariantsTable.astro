@@ -1,0 +1,43 @@
+---
+const { variants = [], showAddButton = true } = Astro.props;
+---
+
+<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+	<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40">
+		<h4 class="font-display text-lg">Variants</h4>
+		<p class="text-xs text-base-content/60 mt-1">Product attribute variations and pricing</p>
+	</div>
+	<div class="overflow-x-auto">
+		<table class="table table-sm">
+			<thead>
+				<tr class="text-xs uppercase tracking-widest text-base-content/50 border-b border-base-300/60">
+					<th class="font-medium">Attribute</th>
+					<th class="font-medium">Values</th>
+					<th class="font-medium">Extra price</th>
+				</tr>
+			</thead>
+			<tbody>
+				{variants.length > 0 ? (
+					variants.map((variant) => (
+						<tr class="hover:bg-base-200/40 transition-colors">
+							<td class="font-medium text-base-content">{variant.attribute}</td>
+							<td>{variant.values}</td>
+							<td>${variant.extraPrice}</td>
+						</tr>
+					))
+				) : (
+					<tr>
+						<td colspan="3" class="text-center py-8 text-base-content/50">
+							No variants configured yet
+						</td>
+					</tr>
+				)}
+			</tbody>
+		</table>
+	</div>
+	{showAddButton && (
+		<div class="px-5 py-3 border-t border-base-300/60 bg-base-100/40">
+			<button class="btn btn-ghost btn-sm text-primary">+ Add variant</button>
+		</div>
+	)}
+</div>

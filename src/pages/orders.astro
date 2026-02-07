@@ -6,6 +6,7 @@ import AccessGate from '../components/AccessGate.astro';
 
 const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
+const isAdmin = Boolean(session.isAdmin);
 
 // Fetch orders from backend API
 let orders = [];
@@ -31,7 +32,7 @@ try {
 }
 ---
 
-<Layout title="TinkerTrack • Orders" isLoggedIn={isLoggedIn}>
+<Layout title="TinkerTrack • Orders" isLoggedIn={isLoggedIn} isAdmin={isAdmin}>
 	{
 		isLoggedIn ? (
 			<section class="relative overflow-hidden">

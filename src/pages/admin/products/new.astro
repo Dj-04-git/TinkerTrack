@@ -1,0 +1,81 @@
+---
+export const prerender = false;
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AccessGate from '../../../components/AccessGate.astro';
+import ProductForm from '../../../components/admin/ProductForm.astro';
+import AdminPageHeader from '../../../components/admin/AdminPageHeader.astro';
+
+const session = Astro.locals?.session ?? {};
+const isLoggedIn = Boolean(session.isLoggedIn);
+const isAdmin = Boolean(session.isAdmin);
+---
+
+<AdminLayout title="TinkerTrack • New Product" isLoggedIn={isLoggedIn} activeTab="Products">
+	{
+		!isLoggedIn ? (
+			<AccessGate
+				badge="Login required"
+				title="Sign in to manage products"
+				description="Admin product pages are available after you sign in."
+			/>
+		) : !isAdmin ? (
+			<AccessGate
+				badge="Admin only"
+				title="Admin access required"
+				description="Only admins can create new products."
+				linkHref="/profile"
+				linkText="Go to profile"
+				hint="Request admin access from your workspace owner if you need to edit products."
+			/>
+		) : (
+			<div class="p-6 lg:p-8">
+				<AdminPageHeader eyebrow="Product management" title="New Product">
+					<Fragment slot="lead">
+						<a href="/admin/products" class="btn btn-ghost btn-xs">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+							</svg>
+							Back to products
+						</a>
+					</Fragment>
+					<Fragment slot="actions">
+						<a href="/admin/products" class="btn btn-ghost btn-sm">Cancel</a>
+						<button class="btn btn-primary btn-sm">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+							</svg>
+							Create product
+						</button>
+					</Fragment>
+				</AdminPageHeader>
+
+				<!-- Product form -->
+				<div class="max-w-4xl grid gap-6">
+					<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+						<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40">
+							<h3 class="font-display text-lg">Product details</h3>
+							<p class="text-xs text-base-content/60 mt-0.5">Basic information about the product</p>
+						</div>
+						<div class="p-5">
+							<ProductForm />
+						</div>
+					</div>
+
+					<!-- Helpful tip -->
+					<div class="rounded-xl border border-info/30 bg-info/5 p-4 flex items-start gap-3">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-info flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						<div>
+							<p class="text-sm font-medium text-info">Next steps after creating</p>
+							<p class="text-xs text-base-content/60 mt-1">
+								Once you create this product, you can configure variants and pricing from the product detail page, 
+								and link it to recurring plans via <a href="/admin/config/recurring-plan" class="link link-primary">Configuration → Recurring Plan</a>.
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		)
+	}
+</AdminLayout>

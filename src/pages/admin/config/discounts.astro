@@ -1,0 +1,253 @@
+---
+export const prerender = false;
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AccessGate from '../../../components/AccessGate.astro';
+import AdminPageHeader from '../../../components/admin/AdminPageHeader.astro';
+
+const session = Astro.locals?.session ?? {};
+const isLoggedIn = Boolean(session.isLoggedIn);
+const isAdmin = Boolean(session.isAdmin);
+
+const products = [
+	'Fresh Milk Delivery',
+	'Organic Vegetable Box',
+	'Weekly Bread Basket',
+	'Coffee Bean Subscription',
+	'Laundry Service'
+];
+
+const discount = {
+	name: 'New Year Saver',
+	type: 'percentage',
+	amount: 10,
+	minPurchase: 50,
+	minQty: 2,
+	applyScope: 'all',
+	limitUsage: false,
+	usageLimit: 100,
+	startDate: '2026-02-01',
+	endDate: '2026-03-31'
+};
+
+const selectedProducts = ['Fresh Milk Delivery', 'Organic Vegetable Box'];
+---
+
+<AdminLayout title="TinkerTrack • Discounts" isLoggedIn={isLoggedIn} activeSubTab="Discounts">
+	{
+		!isLoggedIn ? (
+			<AccessGate
+				badge="Login required"
+				title="Sign in to manage discounts"
+				description="Admin configuration pages are available after you sign in."
+			/>
+		) : !isAdmin ? (
+			<AccessGate
+				badge="Admin only"
+				title="Admin access required"
+				description="Only admins can manage configuration settings."
+				linkHref="/profile"
+				linkText="Go to profile"
+				hint="Request admin access from your workspace owner."
+			/>
+		) : (
+			<div class="p-6 lg:p-8">
+				<AdminPageHeader eyebrow="Configuration" title="Discounts">
+					<Fragment slot="actions">
+						<button class="btn btn-outline btn-sm">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+							</svg>
+							New Discount
+						</button>
+					</Fragment>
+				</AdminPageHeader>
+
+				<div class="max-w-4xl grid gap-6" x-data={`{
+					type: '${discount.type}',
+					amount: ${discount.amount},
+					minPurchase: ${discount.minPurchase},
+					minQty: ${discount.minQty},
+					applyScope: '${discount.applyScope}',
+					selectedProducts: ${JSON.stringify(selectedProducts)},
+					limitUsage: ${discount.limitUsage},
+					usageLimit: ${discount.usageLimit}
+				}`}>
+					<!-- Discount details -->
+					<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+						<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40">
+							<h3 class="font-display text-lg">Discount Details</h3>
+							<p class="text-xs text-base-content/60 mt-0.5">Create discount rules for subscriptions and products</p>
+						</div>
+						<div class="p-5 grid gap-5">
+							<label class="form-control w-full">
+								<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Discount Name</span>
+								<input
+									type="text"
+									value={discount.name}
+									placeholder="e.g. Winter Promo, New Year Saver"
+									class="input input-bordered bg-base-100/80"
+								/>
+							</label>
+
+							<div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Fixed Price / Percentage</span>
+									<select class="select select-bordered bg-base-100/80" x-model="type">
+										<option value="fixed">Fixed price</option>
+										<option value="percentage">Percentage</option>
+									</select>
+									<span class="label-text-alt">
+										Choose how the discount is calculated
+									</span>
+								</label>
+
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Amount</span>
+									<div class="input input-bordered bg-base-100/80 flex items-center">
+										<span class="text-base-content/50" x-text="type === 'percentage' ? '%' : '$'"></span>
+										<input
+											type="number"
+											step="0.01"
+											x-model.number="amount"
+											class="grow bg-transparent border-0 focus:outline-none pl-2"
+										/>
+									</div>
+									<span class="label-text-alt">
+										If amount is fixed, it will be subtracted from the total. If percentage, the discount is applied to the total.
+									</span>
+								</label>
+							</div>
+
+							<div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Minimum Purchase</span>
+									<div class="input input-bordered bg-base-100/80 flex items-center">
+										<span class="text-base-content/50">$</span>
+										<input
+											type="number"
+											step="0.01"
+											x-model.number="minPurchase"
+											class="grow bg-transparent border-0 focus:outline-none pl-2"
+										/>
+									</div>
+									<span class="label-text-alt">
+										Leave empty if no minimum purchase is required
+									</span>
+								</label>
+
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Minimum Quantity</span>
+									<input
+										type="number"
+										min="1"
+										x-model.number="minQty"
+										class="input input-bordered bg-base-100/80"
+									/>
+									<span class="label-text-alt">
+										Minimum product quantity to apply this discount
+									</span>
+								</label>
+							</div>
+
+							<div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Start Date</span>
+									<input
+										type="date"
+										value={discount.startDate}
+										class="input input-bordered bg-base-100/80"
+									/>
+								</label>
+
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">End Date</span>
+									<input
+										type="date"
+										value={discount.endDate}
+										class="input input-bordered bg-base-100/80"
+									/>
+								</label>
+							</div>
+
+							<div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Products</span>
+									<select class="select select-bordered bg-base-100/80" x-model="applyScope">
+										<option value="all">All products</option>
+										<option value="specific">Specific products</option>
+									</select>
+									<span class="label-text-alt">
+										If no product is selected, this discount applies to all products
+									</span>
+								</label>
+
+								<div class="rounded-xl border border-base-300/60 bg-base-100/60 p-4" x-show="applyScope === 'specific'" x-transition>
+									<p class="text-xs uppercase tracking-widest text-base-content/50 mb-3">Select products</p>
+									<div class="grid gap-2">
+										{products.map((product) => (
+											<label class="flex items-center gap-3 text-sm cursor-pointer">
+												<input
+													type="checkbox"
+													class="checkbox checkbox-primary checkbox-sm"
+													value={product}
+													x-model="selectedProducts"
+												/>
+												<span>{product}</span>
+											</label>
+										))}
+									</div>
+									<div class="mt-3 flex flex-wrap gap-2" x-show="selectedProducts.length">
+										<template x-for="item in selectedProducts" :key="item">
+											<span class="badge badge-ghost badge-sm" x-text="item"></span>
+										</template>
+									</div>
+								</div>
+							</div>
+
+							<div class="rounded-xl border border-base-300/60 bg-base-100/60 p-4">
+								<label class="flex items-center gap-3 cursor-pointer">
+									<input type="checkbox" class="checkbox checkbox-primary checkbox-sm" x-model="limitUsage" />
+									<div>
+										<span class="text-sm font-medium">Limit usage</span>
+										<p class="text-xs text-base-content/50">Restrict this discount to a defined number of uses</p>
+									</div>
+								</label>
+								<div class="mt-4" x-show="limitUsage" x-transition>
+									<label class="form-control">
+										<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Usage limit</span>
+										<input
+											type="number"
+											min="1"
+											x-model.number="usageLimit"
+											class="input input-bordered bg-base-100/80 w-40"
+										/>
+										<span class="label-text-alt">
+											When this limit is reached, the discount will no longer apply
+										</span>
+									</label>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="rounded-xl border border-info/30 bg-info/5 p-4 flex items-start gap-3">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-info flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						<div>
+							<p class="text-sm font-medium text-info">Admin-only discounts</p>
+							<p class="text-xs text-base-content/60 mt-1">
+								Discount records can only be created by admins. Apply with care to avoid unintended pricing changes.
+							</p>
+						</div>
+					</div>
+
+					<div class="flex items-center justify-end gap-3">
+						<button class="btn btn-ghost btn-sm">Cancel</button>
+						<button class="btn btn-primary btn-sm">Save discount</button>
+					</div>
+				</div>
+			</div>
+		)
+	}
+</AdminLayout>

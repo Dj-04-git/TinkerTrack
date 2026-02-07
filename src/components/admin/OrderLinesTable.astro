@@ -1,0 +1,22 @@
+---
+const { lines = [] } = Astro.props;
+---
+
+<div class="overflow-hidden rounded-2xl border border-base-300/70">
+	<div class="grid grid-cols-[minmax(0,1.4fr)_minmax(0,0.5fr)_minmax(0,0.7fr)_minmax(0,0.6fr)_minmax(0,0.6fr)] bg-base-100/70 px-4 py-3 text-xs uppercase tracking-widest text-base-content/60">
+		<span>Product</span>
+		<span>Quantity</span>
+		<span>Unit price</span>
+		<span>Taxes</span>
+		<span>Amount</span>
+	</div>
+	{lines.map((line) => (
+		<div class="grid grid-cols-[minmax(0,1.4fr)_minmax(0,0.5fr)_minmax(0,0.7fr)_minmax(0,0.6fr)_minmax(0,0.6fr)] border-t border-base-300/70 px-4 py-4 text-sm text-base-content/70">
+			<p class="font-medium text-base-content">{line.product}</p>
+			<span>{line.quantity}</span>
+			<span>${line.unitPrice}</span>
+			<span>${line.taxes}</span>
+			<span class="font-medium text-base-content">${line.amount}</span>
+		</div>
+	))}
+</div>
