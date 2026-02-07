@@ -12,6 +12,8 @@ const authRoutes = require("./routes/authRoutes");
 const subscriptionRoutes = require("./routes/subscriptionRoutes");
 const discountRoutes = require("./routes/discountRoutes");
 const productTaxRoutes = require("./routes/productTaxRoutes");
+const cartRoutes = require("./routes/cartRoutes");
+
 const app = express();
 app.use(
   cors({
@@ -31,6 +33,7 @@ app.use("/invoices", invoiceRoutes);
 app.use("/subscriptions", subscriptionRoutes);
 app.use("/discounts", discountRoutes);
 app.use("/product-taxes", productTaxRoutes);
+app.use("/cart", cartRoutes);
 
 app.listen(3000, () => {
   console.log("Server running on port 3000");

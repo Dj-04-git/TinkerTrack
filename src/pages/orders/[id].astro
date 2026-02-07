@@ -5,19 +5,74 @@ import PageHeader from '../../components/PageHeader.astro';
 import AddressCard from '../../components/AddressCard.astro';
 import OrderItemsTable from '../../components/OrderItemsTable.astro';
 import AccessGate from '../../components/AccessGate.astro';
-import { getOrders, getOrderById } from '../../lib/checkout.js';
-
-export const getStaticPaths = () =>
-	getOrders().map((order) => ({
-		params: { id: order.id },
-		props: { order }
-	}));
+import { getAddresses } from '../../lib/checkout.js';
 
 const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
 
-const { order } = Astro.props;
-const activeOrder = order ?? getOrderById(Astro.params.id);
+const orderId = Astro.params.id;
+
+// Fetch order from backend API
+let activeOrder = null;
+let error = null;
+
+try {
+	const response = await fetch(`http://localhost:3000/subscriptions/${orderId}`);
+	if (response.ok) {
+		const subscription = await response.json();
+		// Transform subscription to order format
+		const addresses = getAddresses();
+		activeOrder = {
+			id: subscription.subscriptionNumber,
+			date: new Date(subscription.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
+			total: subscription.total,
+			status: subscription.status,
+			subscription: subscription.items?.[0]?.productName || 'Subscription',
+			plan: subscription.paymentTerms || 'Standard',
+			startDate: subscription.startDate ? new Date(subscription.startDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '-',
+			endDate: subscription.endDate ? new Date(subscription.endDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '-',
+			billingAddress: addresses[0],
+			invoices: [
+				{
+					number: `INV-${subscription.id?.toString().padStart(4, '0') || '0001'}`,
+					status: subscription.status === 'Paid' ? 'Paid' : 'Awaiting',
+					amount: subscription.total?.toFixed(2),
+					invoiceDate: new Date(subscription.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
+					dueDate: new Date(subscription.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
+					source: 'Checkout',
+					paymentTerm: subscription.paymentTerms || 'Immediate payment',
+					paidOn: subscription.status === 'Paid' ? new Date(subscription.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : null,
+					amountDue: subscription.status === 'Paid' ? 0 : subscription.total
+				}
+			],
+			items: [
+				...(subscription.items || []).map(item => ({
+					name: item.productName,
+					quantity: item.quantity,
+					unitPrice: item.unitPrice?.toFixed(2),
+					tax: '10%',
+					amount: item.amount?.toFixed(2)
+				})),
+				...(subscription.discountAmount > 0 ? [{
+					name: subscription.discountCode ? `Discount (${subscription.discountCode})` : 'Discount',
+					quantity: 1,
+					unitPrice: (-subscription.discountAmount)?.toFixed(2),
+					tax: '—',
+					amount: (-subscription.discountAmount)?.toFixed(2)
+				}] : [])
+			],
+			summary: {
+				subtotal: subscription.subtotal?.toFixed(2),
+				taxes: subscription.tax?.toFixed(2),
+				total: subscription.total?.toFixed(2)
+			}
+		};
+	} else {
+		error = 'Failed to load order details';
+	}
+} catch (e) {
+	error = 'Unable to connect to the server';
+}
 ---
 
 <Layout title={`TinkerTrack • ${activeOrder?.id ?? 'Order'}`} isLoggedIn={isLoggedIn}>
@@ -37,6 +92,15 @@ const activeOrder = order ?? getOrderById(Astro.params.id);
 						</div>
 					</PageHeader>
 
+					{error && (
+						<div class="mt-6 alert alert-warning">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+							</svg>
+							<span>{error}</span>
+						</div>
+					)}
+
 					{activeOrder ? (
 						<div class="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
 							<div class="grid gap-6">
@@ -47,7 +111,7 @@ const activeOrder = order ?? getOrderById(Astro.params.id);
 												<h2 class="font-display text-2xl">Your subscription</h2>
 												<p class="text-sm text-base-content/70">{activeOrder.subscription}</p>
 											</div>
-											<span class="badge badge-outline">{activeOrder.status}</span>
+											<span class={`badge badge-outline ${activeOrder.status === 'Paid' ? 'badge-success' : activeOrder.status === 'Pending' ? 'badge-warning' : ''}`}>{activeOrder.status}</span>
 										</div>
 										<div class="grid gap-3 text-sm text-base-content/70">
 											<div class="flex items-center justify-between">
@@ -72,7 +136,7 @@ const activeOrder = order ?? getOrderById(Astro.params.id);
 														href={`/orders/${activeOrder.id}/invoice/${invoice.number}`}
 													>
 														<span>{invoice.number}</span>
-														<span class="badge badge-outline">{invoice.status}</span>
+														<span class={`badge badge-outline ${invoice.status === 'Paid' ? 'badge-success' : 'badge-warning'}`}>{invoice.status}</span>
 														<span class="font-medium">${invoice.amount}</span>
 													</a>
 												))}

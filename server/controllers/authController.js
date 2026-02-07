@@ -1,8 +1,8 @@
-import db from "../../db/db.js";
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-import nodemailer from "nodemailer";
-import { config } from "../../config/config.js";
+const db = require("../../db/db");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
+const { config } = require("../../config/config.js");
 
 let transporter;
 
@@ -21,56 +21,85 @@ const initializeTransporter = () => {
 };
 
 // REGISTER
-export const register = async (req, res) => {
+exports.register = async (req, res) => {
   const { name, email, password, phone, location, about } = req.body;
+  
+  // Validate phone number (10 digits only)
+  if (!phone || phone.toString().length !== 10 || isNaN(phone)) {
+    return res.status(400).json({ error: "Phone number must be exactly 10 digits" });
+  }
+
   const hashedPassword = await bcrypt.hash(password, 10);
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
   db.run(
-    "INSERT INTO users (name, email, password, otp, phone, location, about) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    [name, email, hashedPassword, otp, phone , location , about ],
+    "INSERT INTO users (name, email, password, phone, location, about) VALUES (?, ?, ?, ?, ?, ?)",
+    [name, email, hashedPassword, phone, location, about],
     function (err) {
       if (err) return res.status(400).json({ error: "User already exists" });
 
-      initializeTransporter().sendMail({
-        to: email,
-        subject: "OTP Verification",
-        text: `Your OTP is ${otp}`
-      });
+      // Store OTP in otp_verification table (expires in 10 minutes)
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      db.run(
+        "INSERT OR REPLACE INTO otp_verification (email, otp, expiresAt) VALUES (?, ?, ?)",
+        [email, otp, expiresAt],
+        (err) => {
+          if (err) {
+            return res.status(500).json({ error: "Error sending OTP" });
+          }
 
-      res.json({ message: "Registered successfully. Verify OTP." });
+          initializeTransporter().sendMail({
+            to: email,
+            subject: "OTP Verification",
+            text: `Your OTP is ${otp}`
+          });
+
+          res.json({ message: "Registered successfully. Verify OTP." });
+        }
+      );
     }
   );
 };
 
 // VERIFY OTP
-export const verifyOtp = (req, res) => {
+exports.verifyOtp = (req, res) => {
   const { email, otp } = req.body;
 
   db.get(
-    "SELECT * FROM users WHERE email=? AND otp=?",
+    "SELECT * FROM otp_verification WHERE email=? AND otp=? AND expiresAt > datetime('now')",
     [email, otp],
-    (err, user) => {
-      if (!user) return res.status(400).json({ error: "Invalid OTP" });
+    (err, otpRecord) => {
+      if (!otpRecord) {
+        return res.status(400).json({ error: "Invalid or expired OTP" });
+      }
 
       db.run(
-        "UPDATE users SET isVerified=1, otp=NULL WHERE email=?",
-        [email]
-      );
+        "UPDATE users SET isVerified=1 WHERE email=?",
+        [email],
+        (err) => {
+          if (err) {
+            return res.status(400).json({ error: "Verification failed" });
+          }
 
-      res.json({ message: "Account verified successfully" });
+          // Delete OTP after successful verification
+          db.run("DELETE FROM otp_verification WHERE email=?", [email]);
+
+          res.json({ message: "Account verified successfully" });
+        }
+      );
     }
   );
 };
 
 // RESEND OTP
-export const resendOtp = (req, res) => {
+exports.resendOtp = (req, res) => {
   const { email } = req.body;
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
   db.run(
-    "UPDATE users SET otp=? WHERE email=?",
-    [otp, email],
+    "INSERT OR REPLACE INTO otp_verification (email, otp, expiresAt) VALUES (?, ?, ?)",
+    [email, otp, expiresAt],
     function (err) {
       if (err) return res.status(400).json({ message: "User not found" });
 
@@ -86,7 +115,7 @@ export const resendOtp = (req, res) => {
 };
 
 // LOGIN
-export const login = (req, res) => {
+exports.login = (req, res) => {
   const { email, password } = req.body;
 
   db.get("SELECT * FROM users WHERE email=?", [email], async (err, user) => {
@@ -96,55 +125,74 @@ export const login = (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(400).json({ error: "Invalid password" });
 
-  const token = jwt.sign(
-  { id: user.id, email: user.email },
-  config.JWT_SECRET,
-  { expiresIn: "1h" }
-);
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      config.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
     res.json({ message: "Login successful", token, userId: user.id });
   });
 };
 
 // FORGOT PASSWORD (SEND OTP)
-export const forgotPassword = (req, res) => {
+exports.forgotPassword = (req, res) => {
   const { email } = req.body;
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-  db.run("UPDATE users SET otp=? WHERE email=?", [otp, email], function () {
-    initializeTransporter().sendMail({
-      to: email,
-      subject: "Reset Password OTP",
-      text: `Your OTP is ${otp}`
-    });
+  db.run(
+    "INSERT OR REPLACE INTO otp_verification (email, otp, expiresAt) VALUES (?, ?, ?)",
+    [email, otp, expiresAt],
+    (err) => {
+      if (err) {
+        return res.status(500).json({ error: "Error processing request" });
+      }
 
-    res.json({ message: "OTP sent to email" });
-  });
+      initializeTransporter().sendMail({
+        to: email,
+        subject: "Reset Password OTP",
+        text: `Your OTP is ${otp}`
+      });
+
+      res.json({ message: "OTP sent to email" });
+    }
+  );
 };
 
 // RESET PASSWORD
-export const resetPassword = async (req, res) => {
+exports.resetPassword = async (req, res) => {
   const { email, otp, newPassword } = req.body;
   const hashed = await bcrypt.hash(newPassword, 10);
 
   db.get(
-    "SELECT * FROM users WHERE email=? AND otp=?",
+    "SELECT * FROM otp_verification WHERE email=? AND otp=? AND expiresAt > datetime('now')",
     [email, otp],
-    (err, user) => {
-      if (!user) return res.status(400).json({ error: "Invalid OTP" });
+    (err, otpRecord) => {
+      if (!otpRecord) {
+        return res.status(400).json({ error: "Invalid or expired OTP" });
+      }
 
       db.run(
-        "UPDATE users SET password=?, otp=NULL WHERE email=?",
-        [hashed, email]
-      );
+        "UPDATE users SET password=? WHERE email=?",
+        [hashed, email],
+        (err) => {
+          if (err) {
+            return res.status(400).json({ error: "Password reset failed" });
+          }
 
-      res.json({ message: "Password reset successful" });
+          // Delete OTP after successful reset
+          db.run("DELETE FROM otp_verification WHERE email=?", [email]);
+
+          res.json({ message: "Password reset successful" });
+        }
+      );
     }
   );
 };
 
 // GET PROFILE
-export const getProfile = (req, res) => {
+exports.getProfile = (req, res) => {
   const { id } = req.params;
   const tokenUserId = req.user.id; // User ID from JWT token
 
@@ -167,7 +215,7 @@ export const getProfile = (req, res) => {
 };
 
 // UPDATE PROFILE
-export const updateProfile = (req, res) => {
+exports.updateProfile = (req, res) => {
   const { id } = req.params;
   const { name, phone, location, about } = req.body;
   const tokenUserId = req.user.id;
@@ -201,3 +249,4 @@ export const updateProfile = (req, res) => {
     }
   );
 };
+

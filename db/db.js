@@ -14,8 +14,7 @@ db.serialize(() => {
       name TEXT,
       email TEXT UNIQUE,
       password TEXT,
-      otp TEXT,
-      phone INTEGER,
+      phone INTEGER CHECK(length(phone) = 10),
       location TEXT,
       about TEXT,
       isVerified INTEGER DEFAULT 0
@@ -32,6 +31,19 @@ db.serialize(() => {
       db.run("ALTER TABLE users ADD COLUMN isAdmin INTEGER DEFAULT 0");
     }
   });
+
+
+
+    //(temporary storage)
+    db.run(`
+      CREATE TABLE IF NOT EXISTS otp_verification (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT UNIQUE,
+        otp TEXT,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        expiresAt DATETIME
+      )
+    `);
 
   db.run(`
     CREATE TABLE IF NOT EXISTS products (
@@ -131,6 +143,61 @@ db.serialize(() => {
       tax REAL DEFAULT 0,
       total REAL DEFAULT 0,
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      subscriptionNumber TEXT UNIQUE,
+      userid INTEGER,
+      customerName TEXT,
+      planId INTEGER,
+      startDate TEXT,
+      endDate TEXT,
+      paymentTerms TEXT,
+      discountCode TEXT,
+      discountAmount REAL DEFAULT 0,
+      subtotal REAL DEFAULT 0,
+      tax REAL DEFAULT 0,
+      total REAL DEFAULT 0,
+      status TEXT DEFAULT 'Draft',
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (userid) REFERENCES users(id)
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS subscription_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      subscriptionId INTEGER,
+      productId INTEGER,
+      quantity INTEGER,
+      unitPrice REAL,
+      tax REAL,
+      amount REAL,
+      FOREIGN KEY (subscriptionId) REFERENCES subscriptions(id)
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS cart (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER,
+      productId INTEGER,
+      productName TEXT,
+      planId INTEGER,
+      planName TEXT,
+      variantId INTEGER,
+      variantName TEXT,
+      price REAL,
+      billingPeriod TEXT,
+      quantity INTEGER DEFAULT 1,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (userId) REFERENCES users(id),
+      FOREIGN KEY (productId) REFERENCES products(id),
+      FOREIGN KEY (planId) REFERENCES recurring_plans(id),
+      FOREIGN KEY (variantId) REFERENCES product_variants(id)
     )
   `);
 });

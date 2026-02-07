@@ -3,12 +3,32 @@ export const prerender = false;
 import Layout from '../layouts/Layout.astro';
 import PageHeader from '../components/PageHeader.astro';
 import AccessGate from '../components/AccessGate.astro';
-import { getOrders } from '../lib/checkout.js';
 
 const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
 
-const orders = getOrders();
+// Fetch orders from backend API
+let orders = [];
+let error = null;
+
+try {
+	const response = await fetch('http://localhost:3000/subscriptions?userId=1');
+	if (response.ok) {
+		const subscriptions = await response.json();
+		// Transform subscriptions to orders format
+		orders = subscriptions.map(sub => ({
+			id: sub.subscriptionNumber,
+			date: new Date(sub.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
+			total: sub.total,
+			status: sub.status,
+			subscription: sub.productNames || 'Subscription'
+		}));
+	} else {
+		error = 'Failed to load orders';
+	}
+} catch (e) {
+	error = 'Unable to connect to the server';
+}
 ---
 
 <Layout title="TinkerTrack • Orders" isLoggedIn={isLoggedIn}>
@@ -22,31 +42,53 @@ const orders = getOrders();
 						description="Track every subscription renewal and invoice in one calm ledger."
 					/>
 
+					{error && (
+						<div class="mt-6 alert alert-warning">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+							</svg>
+							<span>{error}</span>
+						</div>
+					)}
+
 					<div class="mt-10 card bg-base-200/70 shadow-xl backdrop-blur">
 						<div class="card-body gap-6">
-							<div class="hidden grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,0.6fr)] gap-4 text-xs uppercase tracking-widest text-base-content/60 md:grid">
-								<span>Order</span>
-								<span>Order date</span>
-								<span>Total</span>
-							</div>
-							<div class="grid gap-4">
-								{orders.map((order) => (
-									<a
-										class="grid gap-3 rounded-2xl border border-base-300/70 bg-base-100/70 p-4 transition hover:shadow-lg md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,0.6fr)] md:items-center"
-										href={`/orders/${order.id}`}
-									>
-										<div class="flex flex-col gap-1">
-											<span class="font-semibold">{order.id}</span>
-											<span class="text-sm text-base-content/60">{order.subscription}</span>
-										</div>
-										<div class="text-sm text-base-content/70">{order.date}</div>
-										<div class="flex items-center justify-between text-sm md:justify-start">
-											<span class="font-semibold">${order.total}</span>
-											<span class="badge badge-outline ml-3">{order.status}</span>
-										</div>
-									</a>
-								))}
-							</div>
+							{orders.length === 0 && !error ? (
+								<div class="text-center py-12">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-base-content/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+									</svg>
+									<h3 class="font-display text-xl mt-4">No orders yet</h3>
+									<p class="text-base-content/60 mt-2">Your order history will appear here after your first purchase.</p>
+									<a href="/shop" class="btn btn-primary mt-4">Browse Products</a>
+								</div>
+							) : (
+								<>
+									<div class="hidden grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,0.6fr)] gap-4 text-xs uppercase tracking-widest text-base-content/60 md:grid">
+										<span>Order</span>
+										<span>Order date</span>
+										<span>Total</span>
+									</div>
+									<div class="grid gap-4">
+										{orders.map((order) => (
+											<a
+												class="grid gap-3 rounded-2xl border border-base-300/70 bg-base-100/70 p-4 transition hover:shadow-lg md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,0.6fr)] md:items-center"
+												href={`/orders/${order.id}`}
+											>
+												<div class="flex flex-col gap-1">
+													<span class="font-semibold">{order.id}</span>
+													<span class="text-sm text-base-content/60">{order.subscription}</span>
+												</div>
+												<div class="text-sm text-base-content/70">{order.date}</div>
+												<div class="flex items-center justify-between text-sm md:justify-start">
+													<span class="font-semibold">${order.total?.toFixed(2)}</span>
+													<span class={`badge badge-outline ml-3 ${order.status === 'Paid' ? 'badge-success' : order.status === 'Pending' ? 'badge-warning' : ''}`}>{order.status}</span>
+												</div>
+											</a>
+										))}
+									</div>
+								</>
+							)}
 						</div>
 					</div>
 				</div>

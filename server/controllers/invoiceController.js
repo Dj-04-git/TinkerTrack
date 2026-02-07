@@ -133,3 +133,28 @@ exports.markPaid = (req, res) => {
     () => res.json({ message: "Invoice marked as paid" })
   );
 };
+
+// GET INVOICE COUNT BY USER
+exports.getInvoiceCountByUser = (req, res) => {
+  const { userId } = req.params;
+  
+  // Count invoices linked to user's subscriptions
+  db.get(
+    `SELECT COUNT(*) as count FROM invoices i
+     INNER JOIN subscriptions s ON i.subscriptionId = s.id
+     WHERE s.userId = ?`,
+    [userId],
+    (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ count: row?.count || 0 });
+    }
+  );
+};
+
+// GET TOTAL INVOICE COUNT
+exports.getInvoiceCount = (req, res) => {
+  db.get(`SELECT COUNT(*) as count FROM invoices`, [], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ count: row?.count || 0 });
+  });
+};
