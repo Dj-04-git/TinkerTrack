@@ -1,8 +1,8 @@
-import db from "../db.js";
+import db from "../db/db.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
-import { config } from "../config.js";
+import { config } from "../config/config.js";
 
 let transporter;
 

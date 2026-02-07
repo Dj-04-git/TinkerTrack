@@ -1,0 +1,56 @@
+---
+/**
+ * AddressCard — Renders a billing / shipping address block inside a card.
+ * Reused on order detail page, invoice page, and cart.
+ */
+interface Address {
+	name: string;
+	line1: string;
+	line2?: string;
+	city: string;
+	region: string;
+	postalCode: string;
+	country: string;
+	email?: string;
+	phone?: string;
+}
+
+interface Props {
+	title?: string;
+	address: Address;
+}
+
+const { title = 'Invoicing & address', address } = Astro.props;
+---
+
+<div class="card bg-base-200/70 shadow-xl backdrop-blur">
+	<div class="card-body gap-4">
+		<h2 class="font-display text-2xl">{title}</h2>
+		<div class="grid gap-2 text-sm text-base-content/70">
+			<p class="font-medium text-base-content">{address.name}</p>
+			<p>{address.line1}</p>
+			{address.line2 && <p>{address.line2}</p>}
+			<p>
+				{address.city}, {address.region}{' '}
+				{address.postalCode}
+			</p>
+			<p>{address.country}</p>
+		</div>
+		{(address.email || address.phone) && (
+			<div class="mt-2 grid gap-2 text-sm text-base-content/70">
+				{address.email && (
+					<div class="flex items-center justify-between">
+						<span>Email</span>
+						<span class="font-medium text-base-content">{address.email}</span>
+					</div>
+				)}
+				{address.phone && (
+					<div class="flex items-center justify-between">
+						<span>Phone</span>
+						<span class="font-medium text-base-content">{address.phone}</span>
+					</div>
+				)}
+			</div>
+		)}
+	</div>
+</div>

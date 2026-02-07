@@ -1,0 +1,38 @@
+---
+/**
+ * SummaryCard — Displays the order / cart financial summary (subtotal, taxes, total).
+ * Used in cart sidebar, order-success sidebar, and order detail.
+ * Accepts a title, summary data, and an optional slot for extra content
+ * (discount code input, helpful tips, etc.).
+ */
+interface Props {
+	title?: string;
+	subtotal: number;
+	taxes: number;
+	total: number;
+}
+
+const { title = 'Summary', subtotal, taxes, total } = Astro.props;
+const hasExtra = Astro.slots.has('default');
+---
+
+<div class="card bg-base-200/70 shadow-xl backdrop-blur">
+	<div class="card-body gap-6">
+		<h2 class="font-display text-2xl">{title}</h2>
+		<div class="grid gap-3 text-sm text-base-content/70">
+			<div class="flex items-center justify-between">
+				<span>Subtotal</span>
+				<span>${subtotal}</span>
+			</div>
+			<div class="flex items-center justify-between">
+				<span>Taxes</span>
+				<span>${taxes}</span>
+			</div>
+			<div class="flex items-center justify-between border-t border-base-300/70 pt-3 text-base-content">
+				<span>Total</span>
+				<span class="font-semibold">${total}</span>
+			</div>
+		</div>
+		{hasExtra && <slot />}
+	</div>
+</div>
