@@ -20,3 +20,26 @@ exports.getProducts = (req, res) => {
     res.json(rows);
   });
 };
+
+exports.getProductById = (req, res) => {
+  const { productId } = req.params;
+  db.get(`SELECT * FROM products WHERE id = ?`, [productId], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: "Product not found" });
+    res.json(row);
+  });
+};
+
+exports.getProductPlans = (req, res) => {
+  const { productId } = req.params;
+  db.all(
+    `SELECT rp.* FROM recurring_plans rp
+     INNER JOIN product_plans pp ON rp.id = pp.planId
+     WHERE pp.productId = ?`,
+    [productId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows);
+    }
+  );
+};

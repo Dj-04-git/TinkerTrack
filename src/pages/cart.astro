@@ -4,14 +4,44 @@ import Layout from '../layouts/Layout.astro';
 import PageHeader from '../components/PageHeader.astro';
 import SummaryCard from '../components/SummaryCard.astro';
 import AccessGate from '../components/AccessGate.astro';
-import { getCartItems, getOrderSummary, getAddresses } from '../lib/checkout.js';
+import { getAddresses } from '../lib/checkout.js';
 
 const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
 const isAdmin = Boolean(session.isAdmin);
 
-const cartItems = getCartItems();
-const orderSummary = getOrderSummary();
+// Fetch cart items from backend API
+let cartItems = [];
+let error = null;
+
+try {
+	const response = await fetch('http://localhost:3000/cart?userId=1');
+	if (response.ok) {
+		cartItems = await response.json();
+	} else {
+		error = 'Failed to load cart';
+	}
+} catch (e) {
+	error = 'Unable to connect to the server';
+}
+
+// Fetch available discounts
+let discounts = [];
+try {
+	const discountResponse = await fetch('http://localhost:3000/discounts');
+	if (discountResponse.ok) {
+		discounts = await discountResponse.json();
+	}
+} catch (e) {
+	// Silently fail for discounts
+}
+
+// Calculate order summary from cart items
+const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+const discount = 0;
+const taxes = subtotal * 0.1; // 10% tax
+const total = subtotal - discount + taxes;
+
 const addresses = getAddresses();
 ---
 
@@ -30,32 +60,89 @@ const addresses = getAddresses();
 						<div class="grid gap-6">
 							<div class="grid gap-4">
 								<h2 class="font-display text-2xl">Your subscriptions</h2>
-								{cartItems.map((item) => (
+								
+								{error && (
+									<div class="alert alert-warning">
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+										</svg>
+										<span>{error}</span>
+									</div>
+								)}
+
+								{cartItems.length === 0 && !error && (
 									<div class="card bg-base-200/70 shadow-lg backdrop-blur">
-										<div class="card-body gap-4">
-											<div class="flex flex-wrap items-start justify-between gap-4">
-												<div>
-													<h3 class="font-display text-xl">{item.name}</h3>
-													<p class="text-sm text-base-content/70">{item.summary}</p>
+										<div class="card-body items-center text-center py-12">
+											<svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-base-content/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+											</svg>
+											<h3 class="font-display text-xl mt-4">Your cart is empty</h3>
+											<p class="text-base-content/60">Browse our products and add items to your cart.</p>
+											<a href="/shop" class="btn btn-primary mt-4">Browse Products</a>
+										</div>
+									</div>
+								)}
+
+								<div id="cartItemsContainer">
+									{cartItems.map((item) => (
+										<div class="cart-item card bg-base-200/70 shadow-lg backdrop-blur mb-4" data-item-id={item.id} data-product-id={item.productId}>
+											<div class="card-body gap-4">
+												<div class="flex flex-wrap items-start justify-between gap-4">
+													<div>
+														<h3 class="font-display text-xl">{item.productName}</h3>
+														<p class="text-sm text-base-content/70">
+															{item.planName}
+															{item.variantName && ` • ${item.variantName}`}
+														</p>
+														<span class="badge badge-secondary badge-sm mt-1">{item.billingPeriod}</span>
+													</div>
+													<button 
+														class="btn btn-ghost btn-xs text-error remove-item-btn"
+														data-item-id={item.id}
+													>
+														Remove
+													</button>
 												</div>
-												<button class="btn btn-ghost btn-xs">Remove</button>
-											</div>
-											<div class="flex flex-wrap items-center justify-between gap-4 text-sm text-base-content/70">
-												<span>${item.price} {item.unit}</span>
-												<div class="flex items-center overflow-hidden rounded-2xl border border-base-300/70 bg-base-100/70">
-													<button class="px-4 py-2 text-base-content/70 hover:bg-base-200/70" type="button">-</button>
-													<input
-														type="number"
-														value={item.quantity}
-														class="w-16 bg-transparent px-2 py-2 text-center text-sm outline-none"
-														min="1"
-													/>
-													<button class="px-4 py-2 text-base-content/70 hover:bg-base-200/70" type="button">+</button>
+												<div class="flex flex-wrap items-center justify-between gap-4 text-sm text-base-content/70">
+													<span class="font-display text-lg font-semibold text-primary">
+														${item.price.toFixed(2)} <span class="text-xs font-normal">/{item.billingPeriod}</span>
+													</span>
+													<div class="flex items-center overflow-hidden rounded-2xl border border-base-300/70 bg-base-100/70">
+														<button 
+															class="decrease-qty-btn px-4 py-2 text-base-content/70 hover:bg-base-200/70" 
+															type="button"
+															data-item-id={item.id}
+														>
+															−
+														</button>
+														<input
+															type="number"
+															value={item.quantity}
+															class="item-quantity w-16 bg-transparent px-2 py-2 text-center text-sm outline-none"
+															min="1"
+															readonly
+															data-item-id={item.id}
+														/>
+														<button 
+															class="increase-qty-btn px-4 py-2 text-base-content/70 hover:bg-base-200/70" 
+															type="button"
+															data-item-id={item.id}
+														>
+															+
+														</button>
+													</div>
+												</div>
+												<div class="text-right text-sm text-base-content/60">
+													Subtotal: <span class="font-semibold text-base-content">${(item.price * item.quantity).toFixed(2)}</span>
 												</div>
 											</div>
 										</div>
-									</div>
-								))}
+									))}
+								</div>
+
+								<a href="/shop" class="btn btn-outline btn-sm w-fit">
+									← Continue shopping
+								</a>
 							</div>
 
 							<div class="card bg-base-200/70 shadow-lg backdrop-blur">
@@ -100,20 +187,50 @@ const addresses = getAddresses();
 
 						<aside class="lg:sticky lg:top-24">
 							<SummaryCard
-								subtotal={orderSummary.subtotal}
-								taxes={orderSummary.taxes}
-								total={orderSummary.total}
+								subtotal={subtotal}
+								taxes={taxes}
+								total={total}
 							>
 								<div class="grid gap-3">
-									<label class="input input-bordered flex items-center gap-2">
-										<input type="text" class="grow" placeholder="Discount code" />
-										<button class="btn btn-primary btn-sm">Apply</button>
-									</label>
-									<div class="rounded-2xl border border-base-300/70 bg-base-100/70 p-3 text-xs text-base-content/70">
-										{orderSummary.discountLabel} applied · -${orderSummary.discount}
+									<div class="form-control">
+										<label class="label">
+											<span class="label-text font-medium">Apply Discount Code</span>
+										</label>
+										<select id="discountSelect" class="select select-bordered w-full">
+											<option value="">-- Select a discount code --</option>
+											{discounts.map((d) => (
+												<option 
+													value={d.discountName} 
+													data-id={d.id}
+													data-type={d.type}
+													data-value={d.value}
+													data-min-purchase={d.minimumPurchase}
+													data-min-qty={d.minimumQuantity}
+												>
+													{d.discountName} - {d.type === 'PERCENTAGE' ? `${d.value}% off` : `$${d.value} off`}
+													{d.minimumPurchase > 0 ? ` (Min: $${d.minimumPurchase})` : ''}
+												</option>
+											))}
+										</select>
+									</div>
+									<div class="flex gap-2">
+										<input type="text" id="discountCode" class="input input-bordered flex-1" placeholder="Or enter code manually" />
+										<button class="btn btn-primary btn-sm" id="applyDiscountBtn">Apply</button>
+									</div>
+									<div id="discountInfo" class="hidden rounded-2xl border border-success/30 bg-success/10 p-3 text-sm">
+										<div class="flex items-center justify-between">
+											<span class="flex items-center gap-2 text-success">
+												<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+												</svg>
+												<span id="discountLabel"></span>
+											</span>
+											<span class="font-semibold text-success">-$<span id="discountAmount">0</span></span>
+										</div>
+										<button id="removeDiscountBtn" class="btn btn-ghost btn-xs text-error mt-2">Remove discount</button>
 									</div>
 								</div>
-								<a class="btn btn-primary" href="/order-success">Checkout</a>
+								<button class="btn btn-primary w-full" id="checkoutBtn">Checkout</button>
 							</SummaryCard>
 						</aside>
 					</div>
@@ -128,3 +245,408 @@ const addresses = getAddresses();
 		)
 	}
 </Layout>
+
+<script>
+	// Store applied discount
+	let appliedDiscount: { id: number; code: string; type: string; value: number; discountAmount: string } | null = null;
+
+	// Elements
+	const applyDiscountBtn = document.getElementById('applyDiscountBtn');
+	const discountCodeInput = document.getElementById('discountCode') as HTMLInputElement;
+	const discountSelect = document.getElementById('discountSelect') as HTMLSelectElement;
+	const discountInfo = document.getElementById('discountInfo');
+	const discountLabel = document.getElementById('discountLabel');
+	const discountAmountEl = document.getElementById('discountAmount');
+	const removeDiscountBtn = document.getElementById('removeDiscountBtn');
+
+	// When dropdown selection changes, fill the input
+	discountSelect?.addEventListener('change', () => {
+		const selectedOption = discountSelect.options[discountSelect.selectedIndex];
+		if (selectedOption.value) {
+			discountCodeInput.value = selectedOption.value;
+		}
+	});
+
+	// Remove discount button
+	removeDiscountBtn?.addEventListener('click', () => {
+		appliedDiscount = null;
+		if (discountInfo) discountInfo.classList.add('hidden');
+		if (discountCodeInput) discountCodeInput.value = '';
+		if (discountSelect) discountSelect.selectedIndex = 0;
+		updateCartSummary();
+		showToast('Discount removed');
+	});
+
+	// Apply discount code
+	applyDiscountBtn?.addEventListener('click', async () => {
+		const code = discountCodeInput?.value.trim();
+		if (!code) {
+			showToast('Please select or enter a discount code', 'error');
+			return;
+		}
+
+		const { subtotal, quantity } = calculateCartTotals();
+
+		try {
+			const response = await fetch('http://localhost:3000/discounts/validate', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ code, subtotal, quantity })
+			});
+
+			const data = await response.json();
+
+			if (response.ok && data.valid) {
+				appliedDiscount = data.discount;
+				if (discountInfo && discountLabel && discountAmountEl) {
+					discountInfo.classList.remove('hidden');
+					discountLabel.textContent = `${data.discount.code} (${data.discount.type === 'PERCENTAGE' ? data.discount.value + '%' : '$' + data.discount.value})`;
+					discountAmountEl.textContent = data.discount.discountAmount;
+				}
+				updateCartSummary();
+				showToast(`Discount code "${data.discount.code}" applied!`);
+			} else {
+				showToast(data.message || 'Invalid discount code', 'error');
+			}
+		} catch (error) {
+			showToast('Failed to validate discount code', 'error');
+		}
+	});
+
+	// Checkout button - creates subscription
+	const checkoutBtn = document.getElementById('checkoutBtn');
+	checkoutBtn?.addEventListener('click', async (e) => {
+		e.preventDefault();
+
+		const cartItems = document.querySelectorAll('.cart-item');
+		if (cartItems.length === 0) {
+			showToast('Your cart is empty', 'error');
+			return;
+		}
+
+		const button = checkoutBtn as HTMLButtonElement;
+		button.disabled = true;
+		button.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Processing...';
+
+		try {
+			// Build subscription items from cart
+			const items: Array<{ productId: number; quantity: number; unitPrice: number; tax: number; amount: number }> = [];
+			
+			cartItems.forEach((item) => {
+				const productId = parseInt(item.getAttribute('data-product-id') || '0');
+				const priceText = item.querySelector('.text-primary')?.textContent || '';
+				const unitPrice = parseFloat(priceText.replace('$', '').split(' ')[0]) || 0;
+				const quantity = parseInt((item.querySelector('.item-quantity') as HTMLInputElement)?.value) || 1;
+				const tax = unitPrice * quantity * 0.1;
+				const amount = unitPrice * quantity;
+
+				items.push({
+					productId,
+					quantity,
+					unitPrice,
+					tax,
+					amount
+				});
+			});
+
+			if (items.length === 0) {
+				showToast('No valid items in cart', 'error');
+				button.disabled = false;
+				button.innerHTML = 'Checkout';
+				return;
+			}
+
+			const { subtotal } = calculateCartTotals();
+			const discountAmount = appliedDiscount ? parseFloat(appliedDiscount.discountAmount) : 0;
+
+			// Calculate dates
+			const startDate = new Date().toISOString().split('T')[0];
+			const endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+			console.log('Sending checkout request:', { items, discountAmount, discountCode: appliedDiscount?.code });
+
+			const response = await fetch('http://localhost:3000/subscriptions', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					userId: 1,
+					customerName: 'Demo User',
+					planId: 1,
+					startDate,
+					endDate,
+					paymentTerms: 'NET30',
+					items,
+					discountCode: appliedDiscount?.code || null,
+					discountAmount
+				})
+			});
+
+			const data = await response.json();
+			console.log('Checkout response:', data);
+
+			if (response.ok) {
+				// If discount was applied, increment usage
+				if (appliedDiscount) {
+					await fetch(`http://localhost:3000/discounts/use/${appliedDiscount.id}`, {
+						method: 'POST'
+					});
+				}
+
+				// Clear the cart after successful checkout
+				for (const item of cartItems) {
+					const itemId = item.getAttribute('data-item-id');
+					if (itemId) {
+						await fetch(`http://localhost:3000/cart/${itemId}`, { method: 'DELETE' });
+					}
+				}
+
+				// Redirect to success page
+				window.location.href = `/order-success?subscription=${data.subscriptionNumber}`;
+			} else {
+				showToast(data.error || data.message || 'Failed to create subscription', 'error');
+				button.disabled = false;
+				button.innerHTML = 'Checkout';
+			}
+		} catch (error) {
+			console.error('Checkout error:', error);
+			showToast('Failed to process checkout. Please try again.', 'error');
+			button.disabled = false;
+			button.innerHTML = 'Checkout';
+		}
+	});
+
+	// Calculate cart totals helper
+	function calculateCartTotals() {
+		const cartItems = document.querySelectorAll('.cart-item');
+		let subtotal = 0;
+		let quantity = 0;
+
+		cartItems.forEach((item) => {
+			const priceText = item.querySelector('.text-primary')?.textContent || '';
+			const price = parseFloat(priceText.replace('$', '').split(' ')[0]) || 0;
+			const qty = parseInt((item.querySelector('.item-quantity') as HTMLInputElement)?.value) || 1;
+			subtotal += price * qty;
+			quantity += qty;
+		});
+
+		return { subtotal, quantity };
+	}
+
+	// Remove item from cart
+	document.querySelectorAll('.remove-item-btn').forEach((btn) => {
+		btn.addEventListener('click', async (e) => {
+			const itemId = (e.currentTarget as HTMLElement).getAttribute('data-item-id');
+			if (!itemId) return;
+
+			const button = e.currentTarget as HTMLButtonElement;
+			button.disabled = true;
+			button.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
+
+			try {
+				const response = await fetch(`http://localhost:3000/cart/${itemId}`, {
+					method: 'DELETE'
+				});
+
+				if (response.ok) {
+					const cartItem = document.querySelector(`.cart-item[data-item-id="${itemId}"]`);
+					if (cartItem) {
+						cartItem.classList.add('animate-fade-out');
+						setTimeout(() => {
+							cartItem.remove();
+							updateCartSummary();
+							checkEmptyCart();
+						}, 300);
+					}
+					showToast('Item removed from cart');
+				} else {
+					showToast('Failed to remove item', 'error');
+					button.disabled = false;
+					button.innerHTML = 'Remove';
+				}
+			} catch (error) {
+				showToast('Failed to connect to server', 'error');
+				button.disabled = false;
+				button.innerHTML = 'Remove';
+			}
+		});
+	});
+
+	// Increase quantity
+	document.querySelectorAll('.increase-qty-btn').forEach((btn) => {
+		btn.addEventListener('click', async (e) => {
+			const itemId = (e.currentTarget as HTMLElement).getAttribute('data-item-id');
+			if (!itemId) return;
+
+			const input = document.querySelector(`.item-quantity[data-item-id="${itemId}"]`) as HTMLInputElement;
+			const newQty = parseInt(input.value) + 1;
+
+			try {
+				const response = await fetch(`http://localhost:3000/cart/${itemId}`, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ quantity: newQty })
+				});
+
+				if (response.ok) {
+					input.value = newQty.toString();
+					updateItemSubtotal(itemId);
+					updateCartSummary();
+				}
+			} catch (error) {
+				showToast('Failed to update quantity', 'error');
+			}
+		});
+	});
+
+	// Decrease quantity
+	document.querySelectorAll('.decrease-qty-btn').forEach((btn) => {
+		btn.addEventListener('click', async (e) => {
+			const itemId = (e.currentTarget as HTMLElement).getAttribute('data-item-id');
+			if (!itemId) return;
+
+			const input = document.querySelector(`.item-quantity[data-item-id="${itemId}"]`) as HTMLInputElement;
+			const currentQty = parseInt(input.value);
+			
+			if (currentQty <= 1) return;
+			
+			const newQty = currentQty - 1;
+
+			try {
+				const response = await fetch(`http://localhost:3000/cart/${itemId}`, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ quantity: newQty })
+				});
+
+				if (response.ok) {
+					input.value = newQty.toString();
+					updateItemSubtotal(itemId);
+					updateCartSummary();
+				}
+			} catch (error) {
+				showToast('Failed to update quantity', 'error');
+			}
+		});
+	});
+
+	function updateItemSubtotal(itemId: string) {
+		const cartItem = document.querySelector(`.cart-item[data-item-id="${itemId}"]`);
+		if (!cartItem) return;
+
+		const priceText = cartItem.querySelector('.text-primary')?.textContent || '';
+		const price = parseFloat(priceText.replace('$', '').split(' ')[0]) || 0;
+		const quantity = parseInt((cartItem.querySelector('.item-quantity') as HTMLInputElement)?.value) || 1;
+		
+		const subtotalEl = cartItem.querySelector('.text-right .font-semibold');
+		if (subtotalEl) {
+			subtotalEl.textContent = `$${(price * quantity).toFixed(2)}`;
+		}
+	}
+
+	function updateCartSummary() {
+		const cartItems = document.querySelectorAll('.cart-item');
+		let subtotal = 0;
+
+		cartItems.forEach((item) => {
+			const priceText = item.querySelector('.text-primary')?.textContent || '';
+			const price = parseFloat(priceText.replace('$', '').split(' ')[0]) || 0;
+			const quantity = parseInt((item.querySelector('.item-quantity') as HTMLInputElement)?.value) || 1;
+			subtotal += price * quantity;
+		});
+
+		// Calculate discount
+		let discountValue = 0;
+		if (appliedDiscount) {
+			if (appliedDiscount.type === 'PERCENTAGE') {
+				discountValue = (subtotal * appliedDiscount.value) / 100;
+			} else {
+				discountValue = appliedDiscount.value;
+			}
+			discountValue = Math.min(discountValue, subtotal);
+			appliedDiscount.discountAmount = discountValue.toFixed(2);
+			
+			const discountAmountEl = document.getElementById('discountAmount');
+			if (discountAmountEl) {
+				discountAmountEl.textContent = discountValue.toFixed(2);
+			}
+		}
+
+		const taxes = (subtotal - discountValue) * 0.1;
+		const total = subtotal - discountValue + taxes;
+
+		// Update summary card values
+		const summaryCard = document.querySelector('aside');
+		if (summaryCard) {
+			const rows = summaryCard.querySelectorAll('.flex.justify-between');
+			rows.forEach((row) => {
+				const label = row.querySelector('span')?.textContent?.toLowerCase() || '';
+				const valueEl = row.querySelectorAll('span')[1];
+				if (valueEl) {
+					if (label.includes('subtotal')) {
+						valueEl.textContent = `$${subtotal.toFixed(2)}`;
+					} else if (label.includes('tax')) {
+						valueEl.textContent = `$${taxes.toFixed(2)}`;
+					} else if (label.includes('total')) {
+						valueEl.textContent = `$${total.toFixed(2)}`;
+					}
+				}
+			});
+		}
+	}
+
+	function checkEmptyCart() {
+		const cartItems = document.querySelectorAll('.cart-item');
+		if (cartItems.length === 0) {
+			const container = document.getElementById('cartItemsContainer');
+			if (container) {
+				container.innerHTML = `
+					<div class="card bg-base-200/70 shadow-lg backdrop-blur">
+						<div class="card-body items-center text-center py-12">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-base-content/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+							</svg>
+							<h3 class="font-display text-xl mt-4">Your cart is empty</h3>
+							<p class="text-base-content/60">Browse our products and add items to your cart.</p>
+							<a href="/shop" class="btn btn-primary mt-4">Browse Products</a>
+						</div>
+					</div>
+				`;
+			}
+		}
+	}
+
+	function showToast(message: string, type: 'success' | 'error' = 'success') {
+		const toast = document.createElement('div');
+		toast.className = 'toast toast-end toast-bottom z-50';
+		toast.innerHTML = `
+			<div class="alert ${type === 'success' ? 'alert-success' : 'alert-error'} shadow-lg">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${type === 'success' ? 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' : 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'}" />
+				</svg>
+				<span>${message}</span>
+			</div>
+		`;
+		document.body.appendChild(toast);
+		
+		setTimeout(() => {
+			toast.remove();
+		}, 3000);
+	}
+</script>
+
+<style>
+	.animate-fade-out {
+		animation: fadeOut 0.3s ease-out forwards;
+	}
+
+	@keyframes fadeOut {
+		from {
+			opacity: 1;
+			transform: translateX(0);
+		}
+		to {
+			opacity: 0;
+			transform: translateX(20px);
+		}
+	}
+</style>

@@ -1,15 +1,28 @@
 ---
 export const prerender = false;
 import Layout from '../layouts/Layout.astro';
-import SubscriptionCard from '../components/SubscriptionCard.astro';
-import { getSubscriptions } from '../lib/subscriptions.js';
 
 const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
 const isAdmin = Boolean(session.isAdmin);
 
-const subscriptions = getSubscriptions();
-const filters = ['All', 'Analytics', 'Automation', 'Billing'];
+// Fetch products from database via backend API
+let products = [];
+let error = null;
+
+try {
+	const response = await fetch('http://localhost:3000/products');
+	if (response.ok) {
+		products = await response.json();
+	} else {
+		error = 'Failed to load products';
+	}
+} catch (e) {
+	error = 'Unable to connect to the server';
+}
+
+// Get unique product types for filters
+const productTypes = ['All', ...new Set(products.map(p => p.productType).filter(Boolean))];
 ---
 
 <Layout title="TinkerTrack • Shop" isLoggedIn={isLoggedIn} isAdmin={isAdmin}>
@@ -21,13 +34,13 @@ const filters = ['All', 'Analytics', 'Automation', 'Billing'];
 		<div class="mx-auto max-w-6xl px-6 py-14">
 			<div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
 				<div class="max-w-2xl">
-					<p class="badge badge-outline">Subscription Marketplace</p>
+					<p class="badge badge-outline">Product Marketplace</p>
 					<h1 class="font-display mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
-						Discover new subscription plans
+						Discover our products
 					</h1>
 					<p class="mt-4 text-base-content/70">
-						Browse curated tools for managing billing, customer lifecycle, and reporting.
-						All plans are ready to connect to your workspace.
+						Browse our curated collection of products. Find the perfect tools and services
+						for your needs.
 					</p>
 				</div>
 				<div class="w-full max-w-md">
@@ -46,13 +59,19 @@ const filters = ['All', 'Analytics', 'Automation', 'Billing'];
 								d="m21 21-4.35-4.35m1.35-5.65a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"
 							/>
 						</svg>
-						<input type="text" class="grow" placeholder="Search subscriptions" />
+						<input type="text" id="searchInput" class="grow" placeholder="Search products" />
 					</label>
 				</div>
 			</div>
 			<div class="mt-8 flex flex-wrap gap-2">
-				{filters.map((filter) => (
-					<button class="btn btn-sm btn-ghost" type="button">{filter}</button>
+				{productTypes.map((filter, index) => (
+					<button 
+						class={`btn btn-sm filter-btn ${index === 0 ? 'btn-primary' : 'btn-ghost'}`} 
+						type="button"
+						data-filter={filter}
+					>
+						{filter}
+					</button>
 				))}
 			</div>
 		</div>
@@ -61,14 +80,143 @@ const filters = ['All', 'Analytics', 'Automation', 'Billing'];
 	<section>
 		<div class="mx-auto grid max-w-6xl gap-6 px-6 pb-16">
 			<div class="flex flex-wrap items-center justify-between gap-4">
-				<h2 class="font-display text-2xl">Available subscriptions</h2>
-				<button class="btn btn-ghost btn-sm">View all</button>
+				<h2 class="font-display text-2xl">Available Products</h2>
+				<span class="text-base-content/60 text-sm" id="productCount">
+					{products.length} {products.length === 1 ? 'product' : 'products'} found
+				</span>
 			</div>
-			<div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-				{subscriptions.map((subscription) => (
-					<SubscriptionCard subscription={subscription} />
+
+			{error && (
+				<div class="alert alert-warning">
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+					</svg>
+					<span>{error}</span>
+				</div>
+			)}
+
+			{products.length === 0 && !error && (
+				<div class="flex flex-col items-center justify-center py-16 text-center">
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-base-content/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+					</svg>
+					<h3 class="font-display mt-4 text-xl">No products available</h3>
+					<p class="mt-2 text-base-content/60">Check back later for new products.</p>
+				</div>
+			)}
+
+			<div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3" id="productsGrid">
+				{products.map((product) => (
+					<div 
+						class="product-card card bg-base-200 shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden"
+						data-name={product.productName?.toLowerCase()}
+						data-type={product.productType}
+					>
+						<div class="card-body">
+							<div class="flex items-start justify-between gap-4">
+								<div class="flex-1">
+									<div class="flex items-center gap-2">
+										<span class="badge badge-secondary badge-sm">{product.productType || 'General'}</span>
+									</div>
+									<h3 class="font-display mt-2 text-xl font-semibold tracking-tight line-clamp-2">
+										{product.productName}
+									</h3>
+								</div>
+								<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+									</svg>
+								</div>
+							</div>
+							
+							<div class="mt-4 flex items-baseline gap-2">
+								<span class="font-display text-2xl font-bold text-primary">
+									${product.salesPrice?.toFixed(2) || '0.00'}
+								</span>
+								{product.costPrice && product.costPrice < product.salesPrice && (
+									<span class="text-sm text-base-content/50 line-through">
+										${product.costPrice?.toFixed(2)}
+									</span>
+								)}
+							</div>
+
+							<div class="divider my-3 opacity-50"></div>
+
+							<div class="flex flex-col gap-2 text-sm text-base-content/70">
+								<div class="flex items-center gap-2">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+									</svg>
+									<span>Instant access</span>
+								</div>
+								<div class="flex items-center gap-2">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+									</svg>
+									<span>Premium support</span>
+								</div>
+							</div>
+
+							<div class="card-actions mt-4 justify-end">
+								<a href={`/product/${product.id}`} class="btn btn-ghost btn-sm">Learn more</a>
+								<a href={`/product/${product.id}`} class="btn btn-primary btn-sm">
+									Prices →
+								</a>
+							</div>
+						</div>
+					</div>
 				))}
 			</div>
 		</div>
 	</section>
 </Layout>
+
+<script>
+	// Search and filter functionality
+	const searchInput = document.getElementById('searchInput') as HTMLInputElement;
+	const productCards = document.querySelectorAll('.product-card');
+	const filterButtons = document.querySelectorAll('.filter-btn');
+	const productCount = document.getElementById('productCount');
+
+	let activeFilter = 'All';
+
+	function updateProductCount() {
+		const visibleCards = document.querySelectorAll('.product-card:not([style*="display: none"])');
+		const count = visibleCards.length;
+		if (productCount) {
+			productCount.textContent = `${count} ${count === 1 ? 'product' : 'products'} found`;
+		}
+	}
+
+	function filterProducts() {
+		const searchTerm = searchInput?.value.toLowerCase() || '';
+		
+		productCards.forEach((card) => {
+			const name = card.getAttribute('data-name') || '';
+			const type = card.getAttribute('data-type') || '';
+			
+			const matchesSearch = name.includes(searchTerm);
+			const matchesFilter = activeFilter === 'All' || type === activeFilter;
+			
+			(card as HTMLElement).style.display = matchesSearch && matchesFilter ? '' : 'none';
+		});
+		
+		updateProductCount();
+	}
+
+	searchInput?.addEventListener('input', filterProducts);
+
+	filterButtons.forEach((btn) => {
+		btn.addEventListener('click', () => {
+			filterButtons.forEach(b => {
+				b.classList.remove('btn-primary');
+				b.classList.add('btn-ghost');
+			});
+			btn.classList.remove('btn-ghost');
+			btn.classList.add('btn-primary');
+			
+			activeFilter = btn.getAttribute('data-filter') || 'All';
+			filterProducts();
+		});
+	});
+</script>
