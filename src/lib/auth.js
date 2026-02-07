@@ -1,5 +1,4 @@
 import jwt from "jsonwebtoken";
-import db from "../../db/db.js";
 
 export const SESSION_COOKIE_NAME = "tt_session";
 
@@ -37,18 +36,6 @@ export function verifyJwtToken(token) {
 	} catch (error) {
 		return { isValid: false, payload: null, error };
 	}
-}
-
-export function getUserById(id) {
-	return new Promise((resolve) => {
-		db.get("SELECT id, isAdmin FROM users WHERE id=?", [id], (err, user) => {
-			if (err) {
-				resolve(null);
-				return;
-			}
-			resolve(user ?? null);
-		});
-	});
 }
 
 export async function resolveSession(cookies) {
