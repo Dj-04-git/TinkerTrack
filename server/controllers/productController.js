@@ -1,4 +1,4 @@
-const db = require("../../db/db").default;
+const db = require("../../db/db");
 
 exports.createProduct = (req, res) => {
   const { productName, productType, salesPrice, costPrice } = req.body;

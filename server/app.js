@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 
-require("../db/db"); 
+require("../db/db");
 
 const productRoutes = require("./routes/productRoutes");
 const productVariantRoutes = require("./routes/productVariantRoutes");
@@ -12,8 +12,13 @@ const authRoutes = require("./routes/authRoutes");
 const subscriptionRoutes = require("./routes/subscriptionRoutes");
 
 const app = express();
-
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:4321"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+  })
+);
 app.use(express.json());
 
 app.use("/auth", authRoutes);

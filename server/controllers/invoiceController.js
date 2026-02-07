@@ -1,4 +1,4 @@
-const db = require("../../db/db").default;
+const db = require("../../db/db");
 
 // CREATE INVOICE FROM SUBSCRIPTION (AUTO)
 exports.createInvoice = (req, res) => {
