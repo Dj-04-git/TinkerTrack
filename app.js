@@ -1,5 +1,6 @@
 const express = require("express");
-const { sequelize } = require("./models");
+
+require("./db/db"); // initialize DB
 
 const productRoutes = require("./routes/productRoutes");
 const productVariantRoutes = require("./routes/productVariantRoutes");
@@ -12,7 +13,6 @@ app.use("/products", productRoutes);
 app.use("/products", productVariantRoutes);
 app.use("/plans", recurringPlanRoutes);
 
-sequelize.sync().then(() => {
-  console.log("Database synced");
-  app.listen(3000, () => console.log("Server running on port 3000"));
+app.listen(3000, () => {
+  console.log("Server running on port 3000");
 });

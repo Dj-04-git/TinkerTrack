@@ -1,22 +1,16 @@
-const { Product, ProductVariant } = require("../models");
+const db = require("../db/db");
 
-exports.createVariant = async (req, res) => {
-  try {
-    const { productId } = req.params;
-    const { attribute, value, extraPrice } = req.body;
+exports.createVariant = (req, res) => {
+  const { productId } = req.params;
+  const { attribute, value, extraPrice } = req.body;
 
-    const product = await Product.findByPk(productId);
-    if (!product) return res.status(404).json({ message: "Product not found" });
-
-    const variant = await ProductVariant.create({
-      attribute,
-      value,
-      extraPrice,
-      ProductId: productId
-    });
-
-    res.status(201).json(variant);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  db.run(
+    `INSERT INTO product_variants (productId, attribute, value, extraPrice)
+     VALUES (?, ?, ?, ?)`,
+    [productId, attribute, value, extraPrice],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.status(201).json({ id: this.lastID });
+    }
+  );
 };
