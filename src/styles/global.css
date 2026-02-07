@@ -1,1 +1,57 @@
 @import "tailwindcss";
+@plugin "daisyui" {
+	themes: tinkertrack --default;
+}
+@plugin "daisyui/theme" {
+	name: "tinkertrack";
+	default: true;
+	prefersdark: false;
+	color-scheme: light;
+
+	--color-base-100: oklch(98% 0.02 80);
+	--color-base-200: oklch(95% 0.025 80);
+	--color-base-300: oklch(92% 0.03 80);
+	--color-base-content: oklch(22% 0.03 60);
+
+	--color-primary: oklch(38% 0.09 50);
+	--color-primary-content: oklch(97% 0.02 80);
+	--color-secondary: oklch(60% 0.08 55);
+	--color-secondary-content: oklch(18% 0.02 55);
+	--color-accent: oklch(70% 0.08 70);
+	--color-accent-content: oklch(18% 0.02 70);
+
+	--color-neutral: oklch(30% 0.03 60);
+	--color-neutral-content: oklch(96% 0.02 80);
+
+	--color-info: oklch(64% 0.1 220);
+	--color-info-content: oklch(98% 0.02 220);
+	--color-success: oklch(62% 0.1 150);
+	--color-success-content: oklch(98% 0.02 150);
+	--color-warning: oklch(78% 0.12 90);
+	--color-warning-content: oklch(20% 0.02 90);
+	--color-error: oklch(58% 0.12 25);
+	--color-error-content: oklch(98% 0.02 25);
+
+	--radius-selector: 1rem;
+	--radius-field: 0.6rem;
+	--radius-box: 1.1rem;
+
+	--size-selector: 0.25rem;
+	--size-field: 0.25rem;
+	--border: 1px;
+	--depth: 1;
+	--noise: 0;
+}
+
+:root {
+	--font-display: "Fraunces", "Times New Roman", serif;
+	--font-body: "Source Sans 3", "Segoe UI", sans-serif;
+}
+
+body {
+	font-family: var(--font-body);
+}
+
+.font-display {
+	font-family: var(--font-display);
+}
