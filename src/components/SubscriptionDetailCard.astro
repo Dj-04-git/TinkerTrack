@@ -1,0 +1,75 @@
+---
+const { subscription } = Astro.props;
+---
+
+<article class="card bg-base-200/70 shadow-xl backdrop-blur">
+	<div class="card-body gap-6">
+		<div class="flex items-center justify-between gap-4">
+			<div>
+				<h2 class="font-display text-2xl">{subscription.name}</h2>
+				<p class="text-sm text-base-content/70">{subscription.category}</p>
+			</div>
+			<span class="badge badge-outline">Featured</span>
+		</div>
+
+		<p class="text-base-content/70">{subscription.shortDescription}</p>
+
+		<div class="grid gap-3">
+			<p class="text-sm text-base-content/70">Choose your billing cadence</p>
+			<div class="overflow-hidden rounded-2xl border border-base-300/70 bg-base-100/70">
+				<div class="grid">
+					<button class="flex items-center justify-between px-4 py-3 text-sm font-medium text-primary-content bg-primary/90">
+						<span>Monthly</span>
+						<span>${subscription.pricing.monthly} / mo</span>
+					</button>
+					<button class="flex items-center justify-between border-t border-base-300/70 px-4 py-3 text-sm text-base-content/80 hover:bg-base-200/70">
+						<span>6 months</span>
+						<span>${subscription.pricing.sixMonth} / 6 mo</span>
+					</button>
+					<button class="flex items-center justify-between border-t border-base-300/70 px-4 py-3 text-sm text-base-content/80 hover:bg-base-200/70">
+						<span>Yearly</span>
+						<span>${subscription.pricing.yearly} / yr</span>
+					</button>
+				</div>
+			</div>
+			<span class="text-xs text-base-content/60">{subscription.annualLabel}</span>
+		</div>
+
+		<div class="grid gap-4">
+			<label class="form-control">
+				<span class="label-text">Plan variant</span>
+				<select class="select select-bordered w-full">
+					{subscription.variants.map((variant) => (
+						<option>{variant}</option>
+					))}
+				</select>
+			</label>
+			<div class="grid gap-2">
+				<span class="text-sm text-base-content/70">Seats</span>
+				<div class="flex items-center overflow-hidden rounded-2xl border border-base-300/70 bg-base-100/70">
+					<button class="px-4 py-2 text-sm text-base-content/70 hover:bg-base-200/70" type="button">-</button>
+					<input
+						type="number"
+						value="10"
+						class="w-full bg-transparent px-4 py-2 text-sm outline-none"
+						min="1"
+					/>
+					<button class="px-4 py-2 text-sm text-base-content/70 hover:bg-base-200/70" type="button">+</button>
+				</div>
+			</div>
+			<button class="btn btn-primary w-full">Add subscription</button>
+		</div>
+
+		<div class="rounded-2xl border border-base-300/70 bg-base-200/60 p-4 text-sm text-base-content/70">
+			<h3 class="font-display text-lg">Terms & highlights</h3>
+			<ul class="mt-3 grid gap-2">
+				{subscription.terms.map((term) => (
+					<li class="flex items-center justify-between">
+						<span>{term.label}</span>
+						<span class="font-medium text-base-content">{term.value}</span>
+					</li>
+				))}
+			</ul>
+		</div>
+	</div>
+</article>

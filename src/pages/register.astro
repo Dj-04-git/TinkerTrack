@@ -4,7 +4,7 @@ import Layout from '../layouts/Layout.astro';
 
 <Layout title="TinkerTrack • Register">
 	<main>
-		<section class="relative overflow-hidden">
+		<section class="relative flex-1 overflow-hidden">
 			<div class="pointer-events-none absolute inset-0">
 				<div
 					class="absolute -top-24 right-16 h-64 w-64 rounded-full bg-accent/20 blur-3xl"
@@ -14,34 +14,34 @@ import Layout from '../layouts/Layout.astro';
 				></div>
 			</div>
 
-			<div class="mx-auto grid max-w-6xl gap-10 px-6 py-14 lg:grid-cols-2 lg:items-center">
-				<div>
-					<p class="badge badge-outline">New here</p>
+			<div class="mx-auto grid max-w-6xl gap-10 px-6 py-16 lg:grid-cols-2 lg:items-center">
+				<div class="flex flex-col items-center text-center lg:items-start lg:text-left">
+					<p class="badge badge-outline">Get started</p>
 					<h1 class="font-display mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
-						Create your Track account
+						Build your subscription workspace
 					</h1>
 					<p class="mt-4 text-base-content/70">
-						Register in under a minute and start shaping your progress. Simple, intentional,
-						and ready for future data fetching.
+						Centralize plans, pricing, invoicing, and payments for every recurring product
+						you manage.
 					</p>
-					<div class="mt-8 grid gap-4">
+					<div class="mt-8 grid w-full gap-4 sm:max-w-md">
 						<div class="flex items-center gap-3 text-sm text-base-content/70">
-							<span class="badge badge-neutral">Fast</span>
-							<span>Two-step signup flow coming soon.</span>
+							<span class="badge badge-neutral">Plans</span>
+							<span>Launch flexible pricing and recurring plans fast.</span>
 						</div>
 						<div class="flex items-center gap-3 text-sm text-base-content/70">
-							<span class="badge badge-neutral">Private</span>
-							<span>We keep everything scoped to you.</span>
+							<span class="badge badge-neutral">Operations</span>
+							<span>Automate tax, invoices, and payment follow-ups.</span>
 						</div>
 					</div>
 				</div>
 
-				<div class="w-full max-w-md">
+				<div class="mx-auto w-full max-w-md">
 					<div class="card bg-base-200/70 shadow-2xl backdrop-blur">
 						<div class="card-body">
-							<h2 class="font-display text-2xl">Set up your profile</h2>
+							<h2 class="font-display text-2xl">Create your workspace</h2>
 							<p class="text-sm text-base-content/70">
-								Tell us the essentials. You can refine later.
+								Add the essentials to start configuring subscription plans.
 							</p>
 							<form class="mt-6 grid gap-5" action="#" method="post">
 								<div class="form-control">

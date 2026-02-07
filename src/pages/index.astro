@@ -2,43 +2,150 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="TinkerTrack • Access">
+<Layout title="TinkerTrack • Home">
 	<main>
-		<section class="relative overflow-hidden">
+		<section class="relative flex-1 overflow-hidden">
 			<div class="pointer-events-none absolute inset-0">
 				<div
-					class="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/20 blur-3xl"
+					class="absolute -top-24 left-10 h-72 w-72 rounded-full bg-primary/20 blur-3xl"
 				></div>
 				<div
-					class="absolute bottom-0 right-10 h-80 w-80 rounded-full bg-secondary/20 blur-3xl"
+					class="absolute bottom-0 right-10 h-80 w-80 rounded-full bg-accent/20 blur-3xl"
 				></div>
 			</div>
-			<div class="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-16 lg:flex-row lg:items-center">
-				<div class="max-w-xl">
-					<p class="badge badge-outline">Auth UI</p>
+			<div class="mx-auto grid max-w-6xl gap-12 px-6 py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-center">
+				<div class="flex flex-col items-center text-center lg:items-start lg:text-left">
+					<p class="badge badge-outline">Subscription management</p>
 					<h1 class="font-display mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
-						Welcome back to Track
+						Run every subscription in one calm workspace
 					</h1>
 					<p class="mt-4 text-base-content/70">
-						A focused, warm-toned interface for sign-in and registration. Clean, fast, and
-							ready for future data fetching.
+						TinkerTrack centralizes recurring pricing, invoicing, taxes, discounts, and
+						payments so teams can operate with clarity and confidence.
 					</p>
-					<div class="mt-8 flex flex-wrap gap-4">
-						<a class="btn btn-primary" href="/login">Go to login</a>
-						<a class="btn btn-ghost" href="/register">Create an account</a>
+					<div class="mt-8 flex flex-wrap justify-center gap-4 lg:justify-start">
+						<a class="btn btn-primary" href="/shop">Explore subscriptions</a>
+						<a class="btn btn-ghost" href="/register">Start a workspace</a>
+					</div>
+					<div class="mt-10 grid w-full gap-4 sm:max-w-md">
+						<div class="flex items-center justify-between rounded-2xl border border-base-200/70 bg-base-100/70 px-4 py-3 text-sm">
+							<span class="text-base-content/70">Active subscriptions</span>
+							<span class="font-medium">1,284</span>
+						</div>
+						<div class="flex items-center justify-between rounded-2xl border border-base-200/70 bg-base-100/70 px-4 py-3 text-sm">
+							<span class="text-base-content/70">Invoices automated</span>
+							<span class="font-medium">98%</span>
+						</div>
 					</div>
 				</div>
-				<div class="w-full max-w-md">
-					<div class="card bg-base-200/60 shadow-xl backdrop-blur">
-						<div class="card-body">
-							<h2 class="font-display text-2xl">Quick access</h2>
-							<p class="text-sm text-base-content/70">
-								Jump into the auth flows with refined, form-first layouts.
-							</p>
-							<div class="mt-2 grid gap-3">
-								<a class="btn btn-outline" href="/login">Sign in</a>
-								<a class="btn btn-outline" href="/register">Register</a>
+				<div class="mx-auto w-full max-w-md">
+					<div class="card bg-base-200/70 shadow-2xl backdrop-blur">
+						<div class="card-body gap-6">
+							<div>
+								<h2 class="font-display text-2xl">Today’s operations</h2>
+								<p class="text-sm text-base-content/70">
+									Keep revenue, renewals, and payments aligned with zero guesswork.
+								</p>
 							</div>
+							<div class="grid gap-4">
+								<div class="rounded-2xl border border-base-200/70 bg-base-100/70 p-4">
+									<p class="text-xs uppercase tracking-wide text-base-content/60">Upcoming renewal</p>
+									<div class="mt-2 flex items-center justify-between">
+										<div>
+											<p class="font-medium">Orbit Commerce</p>
+											<p class="text-xs text-base-content/60">Quarterly · Net 14</p>
+										</div>
+										<span class="text-sm font-semibold">$4,800</span>
+									</div>
+								</div>
+								<div class="rounded-2xl border border-base-200/70 bg-base-100/70 p-4">
+									<p class="text-xs uppercase tracking-wide text-base-content/60">Invoice status</p>
+									<div class="mt-2 flex items-center justify-between">
+										<div>
+											<p class="font-medium">10 invoices sent</p>
+											<p class="text-xs text-base-content/60">2 awaiting payment</p>
+										</div>
+										<span class="badge badge-outline">On track</span>
+									</div>
+								</div>
+							</div>
+							<a class="btn btn-outline" href="/shop">Browse plans</a>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<section class="bg-base-200/40">
+			<div class="mx-auto grid max-w-6xl gap-8 px-6 py-14 lg:grid-cols-3">
+				<div class="card bg-base-100/80 shadow-lg">
+					<div class="card-body">
+						<h3 class="font-display text-xl">Recurring pricing</h3>
+						<p class="text-sm text-base-content/70">
+							Launch monthly and annual plans with flexible billing rules.
+						</p>
+					</div>
+				</div>
+				<div class="card bg-base-100/80 shadow-lg">
+					<div class="card-body">
+						<h3 class="font-display text-xl">Invoices & payments</h3>
+						<p class="text-sm text-base-content/70">
+							Automate invoices, track collections, and reconcile payments.
+						</p>
+					</div>
+				</div>
+				<div class="card bg-base-100/80 shadow-lg">
+					<div class="card-body">
+						<h3 class="font-display text-xl">Taxes & discounts</h3>
+						<p class="text-sm text-base-content/70">
+							Apply regional tax logic and discount strategies without chaos.
+						</p>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<section>
+			<div class="mx-auto grid max-w-6xl gap-10 px-6 py-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center">
+				<div class="grid gap-6">
+					<h2 class="font-display text-3xl">A calmer subscription lifecycle</h2>
+					<p class="text-base-content/70">
+						From quote to renewal, every step is captured in a single operational view.
+						Keep your teams aligned across pricing, billing, and customer success.
+					</p>
+					<ul class="grid gap-4 text-sm text-base-content/70">
+						<li class="flex items-start gap-3">
+							<span class="badge badge-neutral">01</span>
+							<span>Configure plans, terms, and pricing in minutes.</span>
+						</li>
+						<li class="flex items-start gap-3">
+							<span class="badge badge-neutral">02</span>
+							<span>Automate invoices, taxes, discounts, and payment reminders.</span>
+						</li>
+						<li class="flex items-start gap-3">
+							<span class="badge badge-neutral">03</span>
+							<span>Track health, churn risk, and revenue performance.</span>
+						</li>
+					</ul>
+				</div>
+				<div class="card bg-base-200/70 shadow-2xl backdrop-blur">
+					<div class="card-body gap-4">
+						<h3 class="font-display text-2xl">Operational highlights</h3>
+						<div class="grid gap-4">
+							<div class="rounded-2xl border border-base-300/70 bg-base-100/70 p-4">
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Payment recovery</p>
+								<p class="mt-2 text-lg font-semibold">$82,400 recovered</p>
+								<p class="text-xs text-base-content/60">Last 30 days</p>
+							</div>
+							<div class="rounded-2xl border border-base-300/70 bg-base-100/70 p-4">
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Revenue accuracy</p>
+								<p class="mt-2 text-lg font-semibold">99.2% forecast precision</p>
+								<p class="text-xs text-base-content/60">Quarterly view</p>
+							</div>
+						</div>
+						<div class="flex flex-wrap gap-3">
+							<a class="btn btn-primary" href="/register">Request access</a>
+							<a class="btn btn-ghost" href="/shop">View marketplace</a>
 						</div>
 					</div>
 				</div>

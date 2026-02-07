@@ -4,7 +4,7 @@ import Layout from '../layouts/Layout.astro';
 
 <Layout title="TinkerTrack • Login">
 	<main>
-		<section class="relative overflow-hidden">
+		<section class="relative flex-1 overflow-hidden">
 			<div class="pointer-events-none absolute inset-0">
 				<div
 					class="absolute -top-20 left-10 h-64 w-64 rounded-full bg-primary/25 blur-3xl"
@@ -14,34 +14,34 @@ import Layout from '../layouts/Layout.astro';
 				></div>
 			</div>
 
-			<div class="mx-auto grid max-w-6xl gap-10 px-6 py-14 lg:grid-cols-2 lg:items-center">
-				<div>
-					<p class="badge badge-outline">Member access</p>
+			<div class="mx-auto grid max-w-6xl gap-10 px-6 py-16 lg:grid-cols-2 lg:items-center">
+				<div class="flex flex-col items-center text-center lg:items-start lg:text-left">
+					<p class="badge badge-outline">Workspace access</p>
 					<h1 class="font-display mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
-						Sign in with focus
+						Return to subscription control
 					</h1>
 					<p class="mt-4 text-base-content/70">
-						A warm, editorial layout with calm spacing so your users feel collected while
-						signing in.
+						Access billing plans, invoices, and renewals in one unified dashboard for
+						your subscription operations.
 					</p>
-					<div class="mt-8 grid gap-4">
+					<div class="mt-8 grid w-full gap-4 sm:max-w-md">
 						<div class="flex items-center gap-3 text-sm text-base-content/70">
-							<span class="badge badge-neutral">Secure</span>
-							<span>Token-ready sessions, coming soon.</span>
+							<span class="badge badge-neutral">Billing</span>
+							<span>Monitor recurring revenue and upcoming renewals.</span>
 						</div>
 						<div class="flex items-center gap-3 text-sm text-base-content/70">
-							<span class="badge badge-neutral">Minimal</span>
-							<span>Only essentials, no distractions.</span>
+							<span class="badge badge-neutral">Invoices</span>
+							<span>Track payments, discounts, and tax summaries.</span>
 						</div>
 					</div>
 				</div>
 
-				<div class="w-full max-w-md">
+				<div class="mx-auto w-full max-w-md">
 					<div class="card bg-base-200/70 shadow-2xl backdrop-blur">
 						<div class="card-body">
-							<h2 class="font-display text-2xl">Welcome back</h2>
+							<h2 class="font-display text-2xl">Sign in to TinkerTrack</h2>
 							<p class="text-sm text-base-content/70">
-								Enter your credentials to continue.
+								Continue managing subscriptions, billing, and customer lifecycle.
 							</p>
 							<form class="mt-6 grid gap-5" action="#" method="post">
 								<div class="form-control">
