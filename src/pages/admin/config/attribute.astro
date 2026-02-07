@@ -1,0 +1,159 @@
+---
+export const prerender = false;
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AccessGate from '../../../components/AccessGate.astro';
+
+const session = Astro.locals?.session ?? {};
+const isLoggedIn = Boolean(session.isLoggedIn);
+const isAdmin = Boolean(session.isAdmin);
+
+// Sample attribute values for demonstration
+const attributeValues: Array<{ value: string; extraPrice: number }> = [];
+---
+
+<AdminLayout title="TinkerTrack • Attribute" isLoggedIn={isLoggedIn} activeSubTab="Attribute">
+	{
+		!isLoggedIn ? (
+			<AccessGate
+				badge="Login required"
+				title="Sign in to manage attributes"
+				description="Admin configuration pages are available after you sign in."
+			/>
+		) : !isAdmin ? (
+			<AccessGate
+				badge="Admin only"
+				title="Admin access required"
+				description="Only admins can manage configuration settings."
+				linkHref="/profile"
+				linkText="Go to profile"
+				hint="Request admin access from your workspace owner."
+			/>
+		) : (
+			<div class="p-6 lg:p-8">
+				<!-- Page header -->
+				<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+					<div>
+						<p class="text-xs uppercase tracking-widest text-base-content/50 mb-2">Configuration</p>
+						<h1 class="font-display text-2xl sm:text-3xl font-semibold">Attribute</h1>
+					</div>
+					<div class="flex items-center gap-2">
+						<button class="btn btn-outline btn-sm">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+							</svg>
+							New
+						</button>
+					</div>
+				</div>
+
+				<!-- Attribute form -->
+				<div class="max-w-4xl grid gap-6">
+					<!-- Attribute Name -->
+					<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+						<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40">
+							<h3 class="font-display text-lg">Attribute details</h3>
+							<p class="text-xs text-base-content/60 mt-0.5">Define attribute name and its values</p>
+						</div>
+						<div class="p-5">
+							<label class="form-control w-full">
+								<span class="label-text text-xs uppercase tracking-widest text-base-content/60 mb-2">Attribute Name</span>
+								<input
+									type="text"
+									placeholder="e.g. Brand, Color, Size"
+									class="input input-bordered input-lg bg-base-100/80 font-display text-xl"
+								/>
+								<span class="label-text-alt text-base-content/50 mt-2">
+									For example: attribute name is "Brand" and its value is "Odoo" with extra price of $20
+								</span>
+							</label>
+						</div>
+					</div>
+
+					<!-- Attribute Values table -->
+					<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+						<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40 flex items-center justify-between">
+							<div>
+								<h3 class="font-display text-lg">Attribute Values</h3>
+								<p class="text-xs text-base-content/60 mt-0.5">Values for this attribute with optional extra pricing</p>
+							</div>
+						</div>
+						<div class="overflow-x-auto">
+							<table class="table">
+								<thead>
+									<tr class="text-xs uppercase tracking-widest text-base-content/50 border-b border-base-300/60">
+										<th class="font-medium">Value</th>
+										<th class="font-medium">Default Extra Price</th>
+										<th class="w-20"></th>
+									</tr>
+								</thead>
+								<tbody>
+									{attributeValues.length > 0 ? (
+										attributeValues.map((attr, index) => (
+											<tr class="hover:bg-base-200/40 transition-colors border-b border-base-300/40">
+												<td>
+													<input
+														type="text"
+														value={attr.value}
+														placeholder="Value name"
+														class="input input-bordered input-sm bg-base-100/80 w-full"
+													/>
+												</td>
+												<td>
+													<input
+														type="text"
+														value={`$${attr.extraPrice}`}
+														placeholder="$0"
+														class="input input-bordered input-sm bg-base-100/80 w-32"
+													/>
+												</td>
+												<td>
+													<button class="btn btn-ghost btn-xs text-error">Remove</button>
+												</td>
+											</tr>
+										))
+									) : (
+										<tr>
+											<td colspan="3" class="py-8">
+												<div class="flex flex-col items-center gap-3 text-base-content/50">
+													<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+														<path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+													</svg>
+													<p>No attribute values yet</p>
+													<p class="text-xs">Add values to define options for this attribute</p>
+												</div>
+											</td>
+										</tr>
+									)}
+									<!-- Add new value row -->
+									<tr class="bg-base-200/30">
+										<td>
+											<input
+												type="text"
+												placeholder="Enter new value..."
+												class="input input-bordered input-sm bg-base-100/80 w-full"
+											/>
+										</td>
+										<td>
+											<input
+												type="text"
+												placeholder="$0"
+												class="input input-bordered input-sm bg-base-100/80 w-32"
+											/>
+										</td>
+										<td>
+											<button class="btn btn-ghost btn-xs text-primary">+ Add</button>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+						<div class="px-5 py-3 border-t border-base-300/60 bg-base-100/40 flex items-center justify-between">
+							<span class="text-xs text-base-content/50">{attributeValues.length} values</span>
+							<button class="btn btn-primary btn-sm">Save attribute</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		)
+	}
+</AdminLayout>

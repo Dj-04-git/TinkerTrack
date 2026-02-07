@@ -8,13 +8,14 @@ import { getCartItems, getOrderSummary, getAddresses } from '../lib/checkout.js'
 
 const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
+const isAdmin = Boolean(session.isAdmin);
 
 const cartItems = getCartItems();
 const orderSummary = getOrderSummary();
 const addresses = getAddresses();
 ---
 
-<Layout title="TinkerTrack • Cart" isLoggedIn={isLoggedIn}>
+<Layout title="TinkerTrack • Cart" isLoggedIn={isLoggedIn} isAdmin={isAdmin}>
 	{
 		isLoggedIn ? (
 			<section class="relative overflow-hidden">

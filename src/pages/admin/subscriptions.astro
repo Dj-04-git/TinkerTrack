@@ -1,30 +1,43 @@
 ---
 export const prerender = false;
-import Layout from '../../layouts/Layout.astro';
-import PageHeader from '../../components/PageHeader.astro';
+import AdminLayout from '../../layouts/AdminLayout.astro';
 import AccessGate from '../../components/AccessGate.astro';
+import AdminStatusFlow from '../../components/admin/AdminStatusFlow.astro';
+import OrderLinesTable from '../../components/admin/OrderLinesTable.astro';
 
 const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
 const isAdmin = Boolean(session.isAdmin);
 
-const tabs = ['Subscriptions', 'Products', 'Reporting', 'Users/contacts', 'Configuration'];
-const statuses = ['Quotation', 'quotation sent', 'confirmed'];
+const statusFlow = ['Draft', 'Quotation', 'Confirmed', 'Active', 'Closed'];
 
 const orderLines = [
 	{
 		product: 'Pulse Analytics Suite',
 		quantity: 1,
-		unit: 'Month',
 		unitPrice: 2400,
-		discount: '10%',
-		taxes: '15%',
-		amount: 2160
+		taxes: 360,
+		amount: 2760
+	},
+	{
+		product: 'Retention Lab',
+		quantity: 2,
+		unitPrice: 980,
+		taxes: 196,
+		amount: 2156
 	}
 ];
+
+const subscriptions = [
+	{ id: 'S-0527', customer: 'Harbor SaaS Studio', status: 'Draft', plan: 'Monthly', amount: 4916 },
+	{ id: 'S-0526', customer: 'Sunward Labs', status: 'Active', plan: 'Annual', amount: 28800 },
+	{ id: 'S-0525', customer: 'Flux Interactive', status: 'Confirmed', plan: 'Monthly', amount: 2760 }
+];
+
+const selectedSub = subscriptions[0];
 ---
 
-<Layout title="TinkerTrack • Subscriptions" isLoggedIn={isLoggedIn}>
+<AdminLayout title="TinkerTrack • Subscriptions" isLoggedIn={isLoggedIn} activeTab="Subscriptions">
 	{
 		!isLoggedIn ? (
 			<AccessGate
@@ -42,126 +55,177 @@ const orderLines = [
 				hint="Request admin access from your workspace owner if you need to edit subscriptions."
 			/>
 		) : (
-			<section class="relative overflow-hidden">
-				<div class="mx-auto max-w-6xl px-6 py-16">
-					<PageHeader
-						badge="Subscription console"
-						title="Quotation workspace"
-						description="Create, send, and confirm subscription quotations for new customers."
-					>
-						<div slot="actions" class="flex flex-wrap items-center gap-2">
-							<button class="btn btn-outline btn-sm">New</button>
-							<button class="btn btn-outline btn-sm">Send</button>
-							<button class="btn btn-primary btn-sm">Confirm</button>
+			<div class="p-6 lg:p-8">
+				<!-- Page header -->
+				<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+					<div>
+						<p class="text-xs uppercase tracking-widest text-base-content/50 mb-2">Subscription management</p>
+						<h1 class="font-display text-2xl sm:text-3xl font-semibold">Subscriptions</h1>
+					</div>
+					<div class="flex items-center gap-2">
+						<button class="btn btn-outline btn-sm">Save draft</button>
+						<button class="btn btn-primary btn-sm">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+							</svg>
+							New subscription
+						</button>
+					</div>
+				</div>
+
+				<!-- Main grid: Subscription list + Detail panel -->
+				<div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+					<!-- Subscription list -->
+					<div class="order-2 xl:order-1">
+						<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+							<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40 flex items-center justify-between">
+								<h3 class="font-display text-lg">All subscriptions</h3>
+								<label class="input input-bordered input-sm flex items-center gap-2 bg-base-100/80 w-48">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+									</svg>
+									<input type="text" class="grow bg-transparent" placeholder="Search…" />
+								</label>
+							</div>
+							<div class="overflow-x-auto">
+								<table class="table table-sm">
+									<thead>
+										<tr class="border-base-300/60">
+											<th class="text-xs uppercase tracking-wider text-base-content/50">ID</th>
+											<th class="text-xs uppercase tracking-wider text-base-content/50">Customer</th>
+											<th class="text-xs uppercase tracking-wider text-base-content/50">Status</th>
+											<th class="text-xs uppercase tracking-wider text-base-content/50 text-right">Amount</th>
+											<th></th>
+										</tr>
+									</thead>
+									<tbody>
+										{subscriptions.map((sub) => (
+											<tr class="hover:bg-base-200/50 border-base-300/40 cursor-pointer">
+												<td class="font-medium">{sub.id}</td>
+												<td>{sub.customer}</td>
+												<td>
+													<span class:list={[
+														'badge badge-sm',
+														sub.status === 'Draft' && 'badge-ghost',
+														sub.status === 'Active' && 'badge-success',
+														sub.status === 'Confirmed' && 'badge-info'
+													]}>{sub.status}</span>
+												</td>
+												<td class="text-right font-mono text-sm">${sub.amount.toLocaleString()}</td>
+												<td>
+													<button class="btn btn-ghost btn-xs">
+														<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+															<path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+														</svg>
+													</button>
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
 						</div>
-					</PageHeader>
+					</div>
 
-					<div class="mt-10 grid gap-6">
-						<div class="card bg-base-200/70 shadow-xl backdrop-blur">
-							<div class="card-body gap-6">
-								<div class="flex flex-wrap items-center justify-between gap-4">
-									<div class="flex flex-wrap items-center gap-2">
-										{tabs.map((tab, index) => (
-											<span
-												class={`badge ${index === 0 ? 'badge-primary' : 'badge-outline'} px-4 py-3 text-sm`}
-											>
-												{tab}
-											</span>
-										))}
-									</div>
-									<a class="btn btn-ghost btn-sm" href="/profile">My profile</a>
+					<!-- Detail panel -->
+					<div class="order-1 xl:order-2 grid gap-6">
+						<!-- Subscription header card -->
+						<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+							<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40 flex items-center justify-between">
+								<div class="flex items-center gap-3">
+									<h3 class="font-display text-lg">{selectedSub.id}</h3>
+									<span class="badge badge-ghost">{selectedSub.status}</span>
 								</div>
-
-								<div class="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-									<div class="grid gap-4">
-										<div class="grid gap-2">
-											<p class="text-xs uppercase tracking-widest text-base-content/60">Subscription number</p>
-											<p class="font-display text-2xl">S-0527</p>
-											<p class="text-sm text-base-content/60">Auto-generated when you create a new record.</p>
-										</div>
-
-										<div class="grid gap-3 sm:grid-cols-2">
-											<label class="form-control">
-												<span class="label-text text-sm">Customer</span>
-												<select class="select select-bordered bg-base-100/80">
-													<option>Harbor SaaS Studio</option>
-													<option>Sunward Labs</option>
-													<option>New customer…</option>
-												</select>
-												<a class="link-hover mt-2 text-xs" href="/admin/users">Create new customer</a>
-											</label>
-											<label class="form-control">
-												<span class="label-text text-sm">Quotation template</span>
-												<select class="select select-bordered bg-base-100/80">
-													<option>Enterprise SaaS</option>
-													<option>Usage based</option>
-													<option>Annual prepaid</option>
-												</select>
-											</label>
-										</div>
-									</div>
-
-									<div class="grid gap-3">
-										<label class="form-control">
-											<span class="label-text text-sm">Expiration</span>
-											<input class="input input-bordered bg-base-100/80" type="text" value="06/30/2026" />
-											<span class="label-text-alt text-xs text-base-content/60">Quotation expires if not accepted.</span>
-										</label>
-										<label class="form-control">
-											<span class="label-text text-sm">Recurring plan</span>
-											<input class="input input-bordered bg-base-100/80" type="text" value="Monthly" />
-										</label>
-										<label class="form-control">
-											<span class="label-text text-sm">Payment term</span>
-											<input class="input input-bordered bg-base-100/80" type="text" value="Immediate payment" />
-										</label>
-									</div>
+								<div class="flex items-center gap-2">
+									<button class="btn btn-ghost btn-sm">Cancel</button>
+									<button class="btn btn-primary btn-sm">Confirm</button>
 								</div>
-
-								<div class="flex flex-wrap items-center justify-between gap-3">
-									<div class="flex items-center gap-2">
-										<button class="btn btn-outline btn-sm">Order lines</button>
-										<button class="btn btn-ghost btn-sm">Other info</button>
-									</div>
-									<div class="flex flex-wrap items-center gap-2">
-										{statuses.map((status, index) => (
-											<span
-												class={`badge ${index === 0 ? 'badge-secondary' : 'badge-outline'}`}
-											>
-												{status}
-											</span>
-										))}
-									</div>
+							</div>
+							<div class="p-5">
+								<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+									<label class="form-control">
+										<span class="label-text text-xs uppercase tracking-wider text-base-content/60">Customer</span>
+										<select class="select select-bordered select-sm bg-base-100/80 mt-1">
+											<option selected>Harbor SaaS Studio</option>
+											<option>Sunward Labs</option>
+											<option>New customer…</option>
+										</select>
+									</label>
+									<label class="form-control">
+										<span class="label-text text-xs uppercase tracking-wider text-base-content/60">Plan</span>
+										<select class="select select-bordered select-sm bg-base-100/80 mt-1">
+											<option selected>Monthly</option>
+											<option>Annual</option>
+											<option>Usage based</option>
+										</select>
+									</label>
+									<label class="form-control">
+										<span class="label-text text-xs uppercase tracking-wider text-base-content/60">Payment terms</span>
+										<input class="input input-bordered input-sm bg-base-100/80 mt-1" type="text" value="Net 15" />
+									</label>
+									<label class="form-control">
+										<span class="label-text text-xs uppercase tracking-wider text-base-content/60">Start date</span>
+										<input class="input input-bordered input-sm bg-base-100/80 mt-1" type="date" value="2026-02-07" />
+									</label>
+									<label class="form-control">
+										<span class="label-text text-xs uppercase tracking-wider text-base-content/60">Expiration date</span>
+										<input class="input input-bordered input-sm bg-base-100/80 mt-1" type="date" value="2026-06-30" />
+									</label>
 								</div>
+							</div>
+						</div>
 
-								<div class="overflow-hidden rounded-2xl border border-base-300/70">
-									<div class="grid grid-cols-[minmax(0,1.2fr)_minmax(0,0.5fr)_minmax(0,0.7fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_minmax(0,0.6fr)] bg-base-100/70 px-4 py-3 text-xs uppercase tracking-widest text-base-content/60">
-										<span>Product</span>
-										<span>Quantity</span>
-										<span>Unit price</span>
-										<span>Discount</span>
-										<span>Taxes</span>
-										<span>Amount</span>
-									</div>
-									{orderLines.map((line) => (
-										<div class="grid grid-cols-[minmax(0,1.2fr)_minmax(0,0.5fr)_minmax(0,0.7fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_minmax(0,0.6fr)] border-t border-base-300/70 px-4 py-4 text-sm text-base-content/70">
-											<div>
-												<p class="font-medium text-base-content">{line.product}</p>
-												<p class="text-xs text-base-content/50">{line.unit}</p>
-											</div>
-											<span>{line.quantity}</span>
-											<span>${line.unitPrice}</span>
-											<span>{line.discount}</span>
-											<span>{line.taxes}</span>
-											<span class="font-medium text-base-content">${line.amount}</span>
-										</div>
-									))}
+						<!-- Status flow -->
+						<div class="flex items-center justify-between gap-4 px-1">
+							<div class="flex items-center gap-2">
+								<button class="btn btn-sm btn-primary">Order lines</button>
+								<button class="btn btn-sm btn-ghost">Other info</button>
+							</div>
+							<AdminStatusFlow statuses={statusFlow} currentIndex={0} />
+						</div>
+
+						<!-- Order lines -->
+						<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+							<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40 flex items-center justify-between">
+								<h3 class="font-display text-lg">Order lines</h3>
+								<button class="btn btn-ghost btn-sm">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+									</svg>
+									Add line
+								</button>
+							</div>
+							<OrderLinesTable lines={orderLines} />
+						</div>
+
+						<!-- Info cards -->
+						<div class="grid gap-6 lg:grid-cols-2">
+							<div class="rounded-2xl border border-base-300/70 bg-base-100/60 p-5">
+								<h3 class="font-display text-lg mb-2">Quotation templates</h3>
+								<p class="text-sm text-base-content/70">
+									Predefined templates for faster subscription setup.
+								</p>
+								<ul class="mt-4 grid gap-1 text-sm text-base-content/60">
+									<li>• Template name</li>
+									<li>• Validity days</li>
+									<li>• Recurring plan</li>
+									<li>• Product lines</li>
+								</ul>
+							</div>
+							<div class="rounded-2xl border border-base-300/70 bg-base-100/60 p-5">
+								<h3 class="font-display text-lg mb-2">Invoice management</h3>
+								<p class="text-sm text-base-content/70">
+									Invoices are generated automatically from subscriptions.
+								</p>
+								<div class="mt-4 text-sm text-base-content/60">
+									<p class="font-medium text-base-content text-xs uppercase tracking-wider mb-2">Status flow</p>
+									<p>Draft → Confirmed → Paid</p>
 								</div>
 							</div>
 						</div>
 					</div>
 				</div>
-			</section>
+			</div>
 		)
 	}
-+</Layout>
+</AdminLayout>

@@ -8,5 +8,6 @@ console.log(process.env.EMAIL_PASS);
 module.exports.config = {
   JWT_SECRET: process.env.JWT_SECRET,
   EMAIL: process.env.EMAIL,
-  EMAIL_PASS: process.env.EMAIL_PASS
+  EMAIL_PASS: process.env.EMAIL_PASS,
+  ADMIN_EMAIL: process.env.ADMIN_EMAIL
 };

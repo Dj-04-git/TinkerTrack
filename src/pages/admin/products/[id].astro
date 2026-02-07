@@ -1,0 +1,351 @@
+---
+export const prerender = false;
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AccessGate from '../../../components/AccessGate.astro';
+
+const session = Astro.locals?.session ?? {};
+const isLoggedIn = Boolean(session.isLoggedIn);
+const isAdmin = Boolean(session.isAdmin);
+
+// Get product ID from URL
+const { id } = Astro.params;
+
+// Mock product data (server-side)
+const mockProducts = [
+	{ id: 1, name: 'Fresh Milk Delivery', type: 'Service', salesPrice: 12.99, costPrice: 8.50, tax: 'GST 5%' },
+	{ id: 2, name: 'Organic Vegetable Box', type: 'Goods', salesPrice: 35.00, costPrice: 22.00, tax: 'GST 5%' },
+	{ id: 3, name: 'Weekly Bread Basket', type: 'Goods', salesPrice: 18.50, costPrice: 11.00, tax: 'None' },
+	{ id: 4, name: 'Coffee Bean Subscription', type: 'Goods', salesPrice: 24.99, costPrice: 15.00, tax: 'GST 5%' },
+	{ id: 5, name: 'Laundry Service', type: 'Service', salesPrice: 45.00, costPrice: 25.00, tax: 'GST 18%' },
+];
+
+// Mock recurring prices for products
+const mockRecurringPrices: Record<number, Array<{ plan: string; price: number; minQty: number; startDate: string; endDate: string }>> = {
+	1: [
+		{ plan: 'Weekly Plan', price: 12.99, minQty: 1, startDate: '2026-01-01', endDate: '2026-12-31' },
+		{ plan: 'Monthly Plan', price: 45.00, minQty: 4, startDate: '2026-01-01', endDate: '2026-12-31' },
+	],
+	2: [
+		{ plan: 'Weekly Plan', price: 35.00, minQty: 1, startDate: '2026-01-01', endDate: '2026-12-31' },
+		{ plan: 'Bi-Weekly Plan', price: 65.00, minQty: 2, startDate: '2026-01-01', endDate: '2026-12-31' },
+	],
+	4: [
+		{ plan: 'Monthly Plan', price: 24.99, minQty: 1, startDate: '2026-01-01', endDate: '2026-12-31' },
+		{ plan: 'Quarterly Plan', price: 69.99, minQty: 3, startDate: '2026-01-01', endDate: '2026-12-31' },
+	],
+	5: [
+		{ plan: 'Weekly Plan', price: 45.00, minQty: 1, startDate: '2026-01-01', endDate: '2026-12-31' },
+	],
+};
+
+// Mock variants for products
+const mockVariants: Record<number, Array<{ attribute: string; value: string; extraPrice: number }>> = {
+	1: [
+		{ attribute: 'Size', value: 'Half Liter', extraPrice: 0 },
+		{ attribute: 'Size', value: '1 Liter', extraPrice: 3.00 },
+		{ attribute: 'Size', value: '2 Liter', extraPrice: 5.50 },
+		{ attribute: 'Type', value: 'Full Cream', extraPrice: 0 },
+		{ attribute: 'Type', value: 'Skimmed', extraPrice: 0.50 },
+	],
+	2: [
+		{ attribute: 'Size', value: 'Small (5 items)', extraPrice: 0 },
+		{ attribute: 'Size', value: 'Medium (10 items)', extraPrice: 15.00 },
+		{ attribute: 'Size', value: 'Large (15 items)', extraPrice: 28.00 },
+	],
+	3: [
+		{ attribute: 'Type', value: 'White Bread', extraPrice: 0 },
+		{ attribute: 'Type', value: 'Whole Wheat', extraPrice: 2.00 },
+		{ attribute: 'Type', value: 'Multigrain', extraPrice: 3.50 },
+	],
+	4: [
+		{ attribute: 'Roast', value: 'Light', extraPrice: 0 },
+		{ attribute: 'Roast', value: 'Medium', extraPrice: 0 },
+		{ attribute: 'Roast', value: 'Dark', extraPrice: 1.50 },
+		{ attribute: 'Grind', value: 'Whole Bean', extraPrice: 0 },
+		{ attribute: 'Grind', value: 'Ground', extraPrice: 0 },
+	],
+};
+
+// Find the product
+const productId = parseInt(id ?? '0');
+const product = mockProducts.find(p => p.id === productId);
+const recurringPrices = mockRecurringPrices[productId] ?? [];
+const variants = mockVariants[productId] ?? [];
+---
+
+<AdminLayout title={product ? `TinkerTrack • ${product.name}` : 'TinkerTrack • Product Not Found'} isLoggedIn={isLoggedIn} activeTab="Products">
+	{
+		!isLoggedIn ? (
+			<AccessGate
+				badge="Login required"
+				title="Sign in to view products"
+				description="Admin product pages are available after you sign in."
+			/>
+		) : !isAdmin ? (
+			<AccessGate
+				badge="Admin only"
+				title="Admin access required"
+				description="Only admins can view product details."
+				linkHref="/profile"
+				linkText="Go to profile"
+				hint="Request admin access from your workspace owner."
+			/>
+		) : !product ? (
+			<div class="p-6 lg:p-8">
+				<div class="flex flex-col items-center justify-center py-16 text-center">
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-base-content/20 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+					</svg>
+					<h1 class="font-display text-2xl font-semibold mb-2">Product not found</h1>
+					<p class="text-base-content/60 mb-6">The product you're looking for doesn't exist or has been removed.</p>
+					<a href="/admin/products" class="btn btn-primary btn-sm">Back to products</a>
+				</div>
+			</div>
+		) : (
+			<div class="p-6 lg:p-8">
+				<!-- Page header -->
+				<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+					<div>
+						<div class="flex items-center gap-2 mb-2">
+							<a href="/admin/products" class="btn btn-ghost btn-xs">
+								<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+								</svg>
+								Back to products
+							</a>
+						</div>
+						<p class="text-xs uppercase tracking-widest text-base-content/50 mb-2">Product details</p>
+						<h1 class="font-display text-2xl sm:text-3xl font-semibold">{product.name}</h1>
+					</div>
+					<div class="flex items-center gap-2">
+						<button class="btn btn-ghost btn-sm text-error">Delete</button>
+						<button class="btn btn-primary btn-sm">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+							</svg>
+							Save changes
+						</button>
+					</div>
+				</div>
+
+				<div class="max-w-4xl grid gap-6">
+					<!-- Product details form -->
+					<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+						<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40">
+							<h3 class="font-display text-lg">Product information</h3>
+							<p class="text-xs text-base-content/60 mt-0.5">Basic details and pricing</p>
+						</div>
+						<div class="p-5 grid gap-5">
+							<!-- Product Name -->
+							<label class="form-control w-full">
+								<span class="label-text text-xs uppercase tracking-widest text-base-content/60 mb-2">Product Name</span>
+								<input
+									type="text"
+									value={product.name}
+									class="input input-bordered input-lg bg-base-100/80 font-display text-xl"
+								/>
+							</label>
+
+							<div class="grid gap-5 sm:grid-cols-2">
+								<!-- Product Type -->
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60 mb-2">Product Type</span>
+									<select class="select select-bordered bg-base-100/80">
+										<option selected={product.type === 'Service'}>Service</option>
+										<option selected={product.type === 'Goods'}>Goods</option>
+									</select>
+								</label>
+
+								<!-- Tax -->
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60 mb-2">Tax</span>
+									<select class="select select-bordered bg-base-100/80">
+										<option selected={product.tax === 'None'}>None</option>
+										<option selected={product.tax === 'GST 5%'}>GST 5%</option>
+										<option selected={product.tax === 'GST 12%'}>GST 12%</option>
+										<option selected={product.tax === 'GST 18%'}>GST 18%</option>
+									</select>
+								</label>
+							</div>
+
+							<div class="grid gap-5 sm:grid-cols-2">
+								<!-- Sales Price -->
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60 mb-2">Sales Price</span>
+									<div class="input input-bordered bg-base-100/80 flex items-center">
+										<span class="text-base-content/50">$</span>
+										<input
+											type="number"
+											step="0.01"
+											value={product.salesPrice}
+											class="grow bg-transparent border-0 focus:outline-none pl-1"
+										/>
+									</div>
+								</label>
+
+								<!-- Cost Price -->
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60 mb-2">Cost Price</span>
+									<div class="input input-bordered bg-base-100/80 flex items-center">
+										<span class="text-base-content/50">$</span>
+										<input
+											type="number"
+											step="0.01"
+											value={product.costPrice}
+											class="grow bg-transparent border-0 focus:outline-none pl-1"
+										/>
+									</div>
+								</label>
+							</div>
+						</div>
+					</div>
+
+					<!-- Recurring Prices / Variants tabbed container -->
+					<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden" x-data="{ activeTab: 'recurring' }">
+						<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40 flex items-center justify-between gap-4">
+							<div class="flex items-center gap-2">
+								<button
+									class="btn btn-sm transition-all"
+									:class="activeTab === 'recurring' ? 'btn-primary' : 'btn-ghost'"
+									@click="activeTab = 'recurring'"
+								>
+									Recurring Prices
+								</button>
+								<button
+									class="btn btn-sm transition-all"
+									:class="activeTab === 'variants' ? 'btn-primary' : 'btn-ghost'"
+									@click="activeTab = 'variants'"
+								>
+									Variants
+								</button>
+							</div>
+						</div>
+
+						<!-- Recurring Prices Tab -->
+						<div x-show="activeTab === 'recurring'" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+							<div class="overflow-x-auto">
+								<table class="table">
+									<thead>
+										<tr class="text-xs uppercase tracking-widest text-base-content/50 border-b border-base-300/60">
+											<th class="font-medium">Recurring Plan</th>
+											<th class="font-medium">Price</th>
+											<th class="font-medium">Min Qty</th>
+											<th class="font-medium">Start Date</th>
+											<th class="font-medium">End Date</th>
+											<th class="w-20"></th>
+										</tr>
+									</thead>
+									<tbody>
+										{recurringPrices.length > 0 ? (
+											recurringPrices.map((price) => (
+												<tr class="hover:bg-base-200/40 transition-colors border-b border-base-300/40">
+													<td class="font-medium">{price.plan}</td>
+													<td>${price.price.toFixed(2)}</td>
+													<td>{price.minQty}</td>
+													<td>{price.startDate}</td>
+													<td>{price.endDate}</td>
+													<td>
+														<button class="btn btn-ghost btn-xs text-error">Remove</button>
+													</td>
+												</tr>
+											))
+										) : (
+											<tr>
+												<td colspan="6" class="text-center py-8 text-base-content/50">
+													<div class="flex flex-col items-center gap-2">
+														<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+															<path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+														</svg>
+														<p>No recurring prices configured</p>
+													</div>
+												</td>
+											</tr>
+										)}
+									</tbody>
+								</table>
+							</div>
+							<div class="px-5 py-3 border-t border-base-300/60 bg-base-100/40 flex items-center justify-between">
+								<span class="text-xs text-base-content/50">{recurringPrices.length} price tiers</span>
+								<button class="btn btn-ghost btn-sm text-primary">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+									</svg>
+									Add price tier
+								</button>
+							</div>
+						</div>
+
+						<!-- Variants Tab -->
+						<div x-show="activeTab === 'variants'" x-cloak x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+							<div class="overflow-x-auto">
+								<table class="table">
+									<thead>
+										<tr class="text-xs uppercase tracking-widest text-base-content/50 border-b border-base-300/60">
+											<th class="font-medium">Attribute</th>
+											<th class="font-medium">Value</th>
+											<th class="font-medium">Extra Price</th>
+											<th class="w-20"></th>
+										</tr>
+									</thead>
+									<tbody>
+										{variants.length > 0 ? (
+											variants.map((variant) => (
+												<tr class="hover:bg-base-200/40 transition-colors border-b border-base-300/40">
+													<td class="font-medium">{variant.attribute}</td>
+													<td>{variant.value}</td>
+													<td>{variant.extraPrice > 0 ? `+$${variant.extraPrice.toFixed(2)}` : '—'}</td>
+													<td>
+														<button class="btn btn-ghost btn-xs text-error">Remove</button>
+													</td>
+												</tr>
+											))
+										) : (
+											<tr>
+												<td colspan="4" class="text-center py-8 text-base-content/50">
+													<div class="flex flex-col items-center gap-2">
+														<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+															<path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+														</svg>
+														<p>No variants configured</p>
+													</div>
+												</td>
+											</tr>
+										)}
+									</tbody>
+								</table>
+							</div>
+							<div class="px-5 py-3 border-t border-base-300/60 bg-base-100/40 flex items-center justify-between">
+								<span class="text-xs text-base-content/50">{variants.length} variants</span>
+								<button class="btn btn-ghost btn-sm text-primary">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+									</svg>
+									Add variant
+								</button>
+							</div>
+						</div>
+					</div>
+
+					<!-- Tip about configuration -->
+					<div class="rounded-xl border border-info/30 bg-info/5 p-4 flex items-start gap-3">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-info flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						<div>
+							<p class="text-sm font-medium text-info">Recurring plans</p>
+							<p class="text-xs text-base-content/60 mt-1">
+								To create new recurring plans, go to <a href="/admin/config/recurring-plan" class="link link-primary">Configuration → Recurring Plan</a>. 
+								Attributes can be managed from <a href="/admin/config/attribute" class="link link-primary">Configuration → Attribute</a>.
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		)
+	}
+</AdminLayout>
+
+<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<style>
+	[x-cloak] { display: none !important; }
+</style>

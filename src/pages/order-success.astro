@@ -7,11 +7,12 @@ import { getOrderReceipt } from '../lib/checkout.js';
 
 const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
+const isAdmin = Boolean(session.isAdmin);
 
 const receipt = getOrderReceipt();
 ---
 
-<Layout title="TinkerTrack • Order success" isLoggedIn={isLoggedIn}>
+<Layout title="TinkerTrack • Order success" isLoggedIn={isLoggedIn} isAdmin={isAdmin}>
 	{
 		isLoggedIn ? (
 			<section class="relative overflow-hidden">

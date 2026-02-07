@@ -15,12 +15,13 @@ export const getStaticPaths = () =>
 
 const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
+const isAdmin = Boolean(session.isAdmin);
 
 const { order } = Astro.props;
 const activeOrder = order ?? getOrderById(Astro.params.id);
 ---
 
-<Layout title={`TinkerTrack • ${activeOrder?.id ?? 'Order'}`} isLoggedIn={isLoggedIn}>
+<Layout title={`TinkerTrack • ${activeOrder?.id ?? 'Order'}`} isLoggedIn={isLoggedIn} isAdmin={isAdmin}>
 	{
 		isLoggedIn ? (
 			<section class="relative overflow-hidden">

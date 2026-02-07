@@ -1,0 +1,71 @@
+---
+const { products = [] } = Astro.props;
+---
+
+<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden" x-data="{ search: '', get filteredProducts() { return this.products.filter(p => p.name.toLowerCase().includes(this.search.toLowerCase()) || p.type.toLowerCase().includes(this.search.toLowerCase())) }, products: [] }" x-init="products = JSON.parse($el.dataset.products)" data-products={JSON.stringify(products)}>
+	<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40 flex items-center justify-between gap-4">
+		<div>
+			<h4 class="font-display text-lg">Product catalog</h4>
+			<p class="text-xs text-base-content/60 mt-1">All products available for subscriptions</p>
+		</div>
+		<label class="input input-bordered input-sm flex items-center gap-2 bg-base-100/80 w-64">
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+				<path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m1.35-5.65a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" />
+			</svg>
+			<input type="text" class="grow bg-transparent" placeholder="Search products..." x-model="search" />
+		</label>
+	</div>
+	<div class="overflow-x-auto">
+		<table class="table">
+			<thead>
+				<tr class="text-xs uppercase tracking-widest text-base-content/50 border-b border-base-300/60">
+					<th class="font-medium">Product name</th>
+					<th class="font-medium">Sales price</th>
+					<th class="font-medium">Cost</th>
+					<th class="font-medium w-20"></th>
+				</tr>
+			</thead>
+			<tbody>
+				<template x-if="filteredProducts.length > 0">
+					<template x-for="product in filteredProducts" :key="product.id">
+						<tr class="hover:bg-base-200/40 transition-colors cursor-pointer" @click="window.location.href = `/admin/products/${product.id}`">
+							<td>
+								<div class="flex items-center gap-3">
+									<div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+										</svg>
+									</div>
+									<div>
+										<p class="font-medium text-base-content" x-text="product.name"></p>
+										<p class="text-xs text-base-content/50" x-text="product.type"></p>
+									</div>
+								</div>
+							</td>
+							<td class="font-medium">$<span x-text="product.salesPrice"></span></td>
+							<td class="text-base-content/70">$<span x-text="product.costPrice"></span></td>
+							<td>
+								<a :href="`/admin/products/${product.id}`" class="btn btn-ghost btn-xs" @click.stop>View</a>
+							</td>
+						</tr>
+					</template>
+				</template>
+				<template x-if="filteredProducts.length === 0">
+					<tr>
+						<td colspan="4" class="text-center py-12 text-base-content/50">
+							<div class="flex flex-col items-center gap-3">
+								<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+								</svg>
+								<p x-text="search ? 'No products match your search' : 'No products yet'"></p>
+							</div>
+						</td>
+					</tr>
+				</template>
+			</tbody>
+		</table>
+	</div>
+	<div class="px-5 py-3 border-t border-base-300/60 bg-base-100/40">
+		<span class="text-xs text-base-content/50"><span x-text="filteredProducts.length"></span> products</span>
+	</div>
+</div>

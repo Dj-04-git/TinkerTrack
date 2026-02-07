@@ -84,8 +84,8 @@ if (Astro.request.method === 'POST') {
 					Astro.response.status = 401;
 				} else {
 					const payload = jwt.decode(token);
-					const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
-					const tokenEmail = String(payload?.email ?? '').toLowerCase();
+					const adminEmail = (import.meta.env.ADMIN_EMAIL ?? process.env.ADMIN_EMAIL ?? '').trim().toLowerCase();
+					const tokenEmail = String(payload?.email ?? '').trim().toLowerCase();
 					const isAdmin = Boolean(adminEmail && tokenEmail && tokenEmail === adminEmail);
 
 					Astro.cookies.set(

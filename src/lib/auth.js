@@ -38,6 +38,11 @@ export function verifyJwtToken(token) {
 	}
 }
 
+function getAdminEmail() {
+	const envValue = (import.meta.env?.ADMIN_EMAIL ?? process.env.ADMIN_EMAIL ?? '').trim();
+	return envValue ? envValue.toLowerCase() : '';
+}
+
 export async function resolveSession(cookies) {
 	const stored = parseSessionCookie(cookies);
 	if (!stored?.token) {
@@ -55,8 +60,8 @@ export async function resolveSession(cookies) {
 		return { isLoggedIn: false };
 	}
 
-	const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
-	const tokenEmail = String(resolvedPayload?.email ?? '').toLowerCase();
+	const adminEmail = getAdminEmail();
+	const tokenEmail = String(resolvedPayload?.email ?? '').trim().toLowerCase();
 	const isAdmin = Boolean(adminEmail && tokenEmail && tokenEmail === adminEmail);
 
 	return {

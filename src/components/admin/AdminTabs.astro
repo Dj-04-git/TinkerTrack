@@ -1,0 +1,14 @@
+---
+const { items = [], activeLabel = '' } = Astro.props;
+---
+
+<div class="flex flex-wrap items-center gap-2">
+	{items.map((item) => (
+		<a
+			class={`badge ${item.label === activeLabel ? 'badge-primary' : 'badge-outline'} px-4 py-3 text-sm`}
+			href={item.href}
+		>
+			{item.label}
+		</a>
+	))}
+</div>

@@ -1,0 +1,17 @@
+---
+const { title, children } = Astro.props;
+---
+
+<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+	<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40 flex items-center justify-between gap-4">
+		<slot name="header" />
+	</div>
+	<div class="p-5">
+		<slot />
+	</div>
+	{Astro.slots.has('footer') && (
+		<div class="px-5 py-3 border-t border-base-300/60 bg-base-100/40">
+			<slot name="footer" />
+		</div>
+	)}
+</div>

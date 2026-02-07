@@ -1,4 +1,5 @@
 ---
+export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
 import SubscriptionDetailCard from '../../components/SubscriptionDetailCard.astro';
 import { getSubscriptions, getSubscriptionById } from '../../lib/subscriptions.js';
@@ -9,11 +10,15 @@ export const getStaticPaths = () =>
 		props: { subscription }
 	}));
 
+const session = Astro.locals?.session ?? {};
+const isLoggedIn = Boolean(session.isLoggedIn);
+const isAdmin = Boolean(session.isAdmin);
+
 const { subscription } = Astro.props;
 const activeSubscription = subscription ?? getSubscriptionById(Astro.params.id);
 ---
 
-<Layout title={`TinkerTrack • ${activeSubscription?.name ?? 'Subscription'}`}>
+<Layout title={`TinkerTrack • ${activeSubscription?.name ?? 'Subscription'}`} isLoggedIn={isLoggedIn} isAdmin={isAdmin}>
 	<section class="relative overflow-hidden">
 		<div class="pointer-events-none absolute inset-0">
 			<div class="absolute -top-24 left-10 h-72 w-72 rounded-full bg-primary/20 blur-3xl"></div>

@@ -1,0 +1,246 @@
+---
+export const prerender = false;
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AccessGate from '../../../components/AccessGate.astro';
+
+const session = Astro.locals?.session ?? {};
+const isLoggedIn = Boolean(session.isLoggedIn);
+const isAdmin = Boolean(session.isAdmin);
+
+// Sample product lines for demonstration
+const productLines: Array<{ product: string; variant: string; price: number; minQty: number }> = [];
+---
+
+<AdminLayout title="TinkerTrack • Recurring Plan" isLoggedIn={isLoggedIn} activeSubTab="Recurring Plan">
+	{
+		!isLoggedIn ? (
+			<AccessGate
+				badge="Login required"
+				title="Sign in to manage recurring plans"
+				description="Admin configuration pages are available after you sign in."
+			/>
+		) : !isAdmin ? (
+			<AccessGate
+				badge="Admin only"
+				title="Admin access required"
+				description="Only admins can manage configuration settings."
+				linkHref="/profile"
+				linkText="Go to profile"
+				hint="Request admin access from your workspace owner."
+			/>
+		) : (
+			<div class="p-6 lg:p-8">
+				<!-- Page header -->
+				<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+					<div>
+						<p class="text-xs uppercase tracking-widest text-base-content/50 mb-2">Configuration</p>
+						<h1 class="font-display text-2xl sm:text-3xl font-semibold">Recurring Plan</h1>
+					</div>
+					<div class="flex items-center gap-2">
+						<button class="btn btn-outline btn-sm">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+							</svg>
+							New
+						</button>
+						<span class="badge badge-info badge-sm">Subscription</span>
+					</div>
+				</div>
+
+				<!-- Recurring Plan form -->
+				<div class="max-w-4xl grid gap-6">
+					<!-- Plan Name and Settings -->
+					<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+						<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40">
+							<h3 class="font-display text-lg">Plan details</h3>
+							<p class="text-xs text-base-content/60 mt-0.5">Define the recurring plan settings</p>
+						</div>
+						<div class="p-5 grid gap-5">
+							<!-- Recurring Name -->
+							<label class="form-control w-full">
+								<span class="label-text text-xs uppercase tracking-widest text-base-content/60 mb-2">Recurring Name</span>
+								<input
+									type="text"
+									placeholder="e.g. Monthly Pro, Annual Basic"
+									class="input input-bordered input-lg bg-base-100/80 font-display text-xl"
+								/>
+							</label>
+
+							<div class="grid gap-5 sm:grid-cols-2">
+								<!-- Billing Period -->
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60 mb-2">Billing Period</span>
+									<div class="flex items-center gap-2">
+										<input
+											type="number"
+											placeholder="1"
+											min="1"
+											class="input input-bordered bg-base-100/80 w-20"
+										/>
+										<select class="select select-bordered bg-base-100/80 flex-1">
+											<option>Month</option>
+											<option>Week</option>
+											<option>Year</option>
+										</select>
+									</div>
+									<span class="label-text-alt text-base-content/50 mt-1.5">
+										e.g. 1 Year or 1 Month
+									</span>
+								</label>
+
+								<!-- Automatic Close -->
+								<label class="form-control">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60 mb-2">Automatic Close</span>
+									<div class="flex items-center gap-2">
+										<input
+											type="number"
+											placeholder="30"
+											min="0"
+											class="input input-bordered bg-base-100/80 w-20"
+										/>
+										<span class="text-base-content/70">Days</span>
+									</div>
+									<span class="label-text-alt text-base-content/50 mt-1.5">
+										If this period passes, subscription will auto close
+									</span>
+								</label>
+							</div>
+
+							<!-- Checkboxes -->
+							<div class="border-t border-base-300/60 pt-5 mt-2">
+								<p class="label-text text-xs uppercase tracking-widest text-base-content/60 mb-3">Portal Options</p>
+								<p class="text-xs text-base-content/50 mb-4">
+									These options control what users can do with subscriptions using this recurring plan on the customer portal
+								</p>
+								<div class="flex flex-wrap gap-6">
+									<label class="flex items-center gap-3 cursor-pointer">
+										<input type="checkbox" class="checkbox checkbox-primary checkbox-sm" />
+										<div>
+											<span class="text-sm font-medium">Closable</span>
+											<p class="text-xs text-base-content/50">Allow customers to close the subscription</p>
+										</div>
+									</label>
+									<label class="flex items-center gap-3 cursor-pointer">
+										<input type="checkbox" class="checkbox checkbox-primary checkbox-sm" />
+										<div>
+											<span class="text-sm font-medium">Pausable</span>
+											<p class="text-xs text-base-content/50">Allow customers to pause the subscription</p>
+										</div>
+									</label>
+									<label class="flex items-center gap-3 cursor-pointer">
+										<input type="checkbox" class="checkbox checkbox-primary checkbox-sm" />
+										<div>
+											<span class="text-sm font-medium">Renew</span>
+											<p class="text-xs text-base-content/50">Allow customers to renew the subscription</p>
+										</div>
+									</label>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Product Lines table -->
+					<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+						<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40 flex items-center justify-between">
+							<div>
+								<h3 class="font-display text-lg">Products</h3>
+								<p class="text-xs text-base-content/60 mt-0.5">Products included in this recurring plan</p>
+							</div>
+						</div>
+						<div class="overflow-x-auto">
+							<table class="table">
+								<thead>
+									<tr class="text-xs uppercase tracking-widest text-base-content/50 border-b border-base-300/60">
+										<th class="font-medium">Product</th>
+										<th class="font-medium">Variant</th>
+										<th class="font-medium">Price</th>
+										<th class="font-medium">Min Qty.</th>
+										<th class="w-20"></th>
+									</tr>
+								</thead>
+								<tbody>
+									{productLines.length > 0 ? (
+										productLines.map((line) => (
+											<tr class="hover:bg-base-200/40 transition-colors border-b border-base-300/40">
+												<td class="font-medium">{line.product}</td>
+												<td>{line.variant}</td>
+												<td>${line.price}</td>
+												<td>{line.minQty}</td>
+												<td>
+													<button class="btn btn-ghost btn-xs text-error">Remove</button>
+												</td>
+											</tr>
+										))
+									) : (
+										<tr>
+											<td colspan="5" class="py-8">
+												<div class="flex flex-col items-center gap-3 text-base-content/50">
+													<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+														<path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+													</svg>
+													<p>No products linked yet</p>
+													<p class="text-xs">Add products to include in this recurring plan</p>
+												</div>
+											</td>
+										</tr>
+									)}
+									<!-- Add new product row -->
+									<tr class="bg-base-200/30">
+										<td>
+											<select class="select select-bordered select-sm bg-base-100/80 w-full">
+												<option value="" disabled selected>Select product...</option>
+												<option>Demo Product</option>
+											</select>
+										</td>
+										<td>
+											<select class="select select-bordered select-sm bg-base-100/80 w-full">
+												<option value="" disabled selected>Variant...</option>
+											</select>
+										</td>
+										<td>
+											<input
+												type="text"
+												placeholder="e.g. 4"
+												class="input input-bordered input-sm bg-base-100/80 w-24"
+											/>
+											<span class="text-xs text-base-content/50 ml-1">per week</span>
+										</td>
+										<td>
+											<input
+												type="number"
+												placeholder="1"
+												min="1"
+												class="input input-bordered input-sm bg-base-100/80 w-20"
+											/>
+										</td>
+										<td>
+											<button class="btn btn-ghost btn-xs text-primary">+ Add</button>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+						<div class="px-5 py-3 border-t border-base-300/60 bg-base-100/40 flex items-center justify-between">
+							<span class="text-xs text-base-content/50">{productLines.length} products</span>
+							<button class="btn btn-primary btn-sm">Save recurring plan</button>
+						</div>
+					</div>
+
+					<!-- Active subscriptions info -->
+					<div class="rounded-xl border border-info/30 bg-info/5 p-4 flex items-start gap-3">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-info flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						<div>
+							<p class="text-sm font-medium text-info">Active subscriptions</p>
+							<p class="text-xs text-base-content/60 mt-1">
+								Any active subscription linked with this recurring plan will be affected by changes. 
+								Closable/Pausable/Renew options control what appears on the customer portal.
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		)
+	}
+</AdminLayout>

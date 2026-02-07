@@ -1,0 +1,11 @@
+---
+const { statuses = [], currentIndex = 0 } = Astro.props;
+---
+
+<div class="flex flex-wrap items-center gap-2">
+	{statuses.map((status, index) => (
+		<span class={`badge ${index === currentIndex ? 'badge-secondary' : 'badge-outline'}`}>
+			{status}
+		</span>
+	))}
+</div>

@@ -1,0 +1,47 @@
+---
+const { lines = [], showAddButton = true } = Astro.props;
+---
+
+<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+	<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40">
+		<h4 class="font-display text-lg">Recurring prices</h4>
+		<p class="text-xs text-base-content/60 mt-1">Price tiers for different billing cycles</p>
+	</div>
+	<div class="overflow-x-auto">
+		<table class="table table-sm">
+			<thead>
+				<tr class="text-xs uppercase tracking-widest text-base-content/50 border-b border-base-300/60">
+					<th class="font-medium">Recurring plan</th>
+					<th class="font-medium">Price</th>
+					<th class="font-medium">Min qty</th>
+					<th class="font-medium">Start date</th>
+					<th class="font-medium">End date</th>
+				</tr>
+			</thead>
+			<tbody>
+				{lines.length > 0 ? (
+					lines.map((line) => (
+						<tr class="hover:bg-base-200/40 transition-colors">
+							<td class="font-medium text-base-content">{line.plan}</td>
+							<td>${line.price}</td>
+							<td>{line.minQty}</td>
+							<td>{line.startDate}</td>
+							<td>{line.endDate}</td>
+						</tr>
+					))
+				) : (
+					<tr>
+						<td colspan="5" class="text-center py-8 text-base-content/50">
+							No recurring prices configured yet
+						</td>
+					</tr>
+				)}
+			</tbody>
+		</table>
+	</div>
+	{showAddButton && (
+		<div class="px-5 py-3 border-t border-base-300/60 bg-base-100/40">
+			<button class="btn btn-ghost btn-sm text-primary">+ Add price tier</button>
+		</div>
+	)}
+</div>

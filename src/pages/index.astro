@@ -4,9 +4,10 @@ import Layout from '../layouts/Layout.astro';
 
 const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
+const isAdmin = Boolean(session.isAdmin);
 ---
 
-<Layout title="TinkerTrack • Home" isLoggedIn={isLoggedIn}>
+<Layout title="TinkerTrack • Home" isLoggedIn={isLoggedIn} isAdmin={isAdmin}>
 	<main>
 		<section class="relative flex-1 overflow-hidden">
 			<div class="pointer-events-none absolute inset-0">
