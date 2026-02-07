@@ -1,0 +1,72 @@
+---
+export const prerender = false;
+import Layout from '../layouts/Layout.astro';
+import PageHeader from '../components/PageHeader.astro';
+import AccessGate from '../components/AccessGate.astro';
+import { getOrderReceipt } from '../lib/checkout.js';
+
+const session = Astro.locals?.session ?? {};
+const isLoggedIn = Boolean(session.isLoggedIn);
+
+const receipt = getOrderReceipt();
+---
+
+<Layout title="TinkerTrack • Order success" isLoggedIn={isLoggedIn}>
+	{
+		isLoggedIn ? (
+			<section class="relative overflow-hidden">
+				<div class="mx-auto max-w-6xl px-6 py-16">
+					<div class="grid gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+						<div class="grid gap-6">
+							<PageHeader
+								badge="Payment received"
+								title="Thanks for your order"
+								description={`Order ${receipt.orderId} · ${receipt.status}`}
+							/>
+
+							<div class="rounded-3xl border border-base-200/70 bg-base-200/70 p-6 shadow-lg">
+								<p class="text-sm text-base-content/70">{receipt.message}</p>
+							</div>
+
+							<div class="flex flex-wrap items-center gap-3">
+								<a class="btn btn-primary" href="/shop">Continue shopping</a>
+								<button class="btn btn-outline">Print receipt</button>
+							</div>
+						</div>
+
+						<aside class="lg:sticky lg:top-24">
+							<div class="card bg-base-200/70 shadow-xl backdrop-blur">
+								<div class="card-body gap-6">
+									<h2 class="font-display text-2xl">Order summary</h2>
+									<div class="grid gap-3 text-sm text-base-content/70">
+										{receipt.lineItems.map((item) => (
+											<div class="flex items-center justify-between">
+												<span>{item.name}</span>
+												<span>{item.amount < 0 ? `-$${Math.abs(item.amount)}` : `$${item.amount}`}</span>
+											</div>
+										))}
+										<div class="flex items-center justify-between border-t border-base-300/70 pt-3 text-base-content">
+											<span>Total</span>
+											<span class="font-semibold">${receipt.summary.total}</span>
+										</div>
+									</div>
+									<div class="rounded-2xl border border-base-300/70 bg-base-100/70 p-4 text-sm text-base-content/70">
+										<p class="font-medium text-base-content">Need anything else?</p>
+										<p class="mt-2">Your order is available in the workspace ledger and export-ready.</p>
+										<a class="link-hover mt-3 inline-block" href="/profile">Go to profile</a>
+									</div>
+								</div>
+							</div>
+						</aside>
+					</div>
+				</div>
+			</section>
+		) : (
+			<AccessGate
+				badge="Login required"
+				title="Sign in to view this receipt"
+				description="Receipts are visible after you sign in."
+			/>
+		)
+	}
+</Layout>

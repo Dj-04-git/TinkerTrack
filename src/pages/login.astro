@@ -1,5 +1,114 @@
 ---
+export const prerender = false;
 import Layout from '../layouts/Layout.astro';
+import jwt from 'jsonwebtoken';
+import { SESSION_COOKIE_NAME } from '../lib/auth.js';
+
+const session = Astro.locals?.session ?? {};
+if (session.isLoggedIn) {
+	return Astro.redirect(session.isAdmin ? '/admin/subscriptions' : '/shop');
+}
+
+const formValues = {
+	email: ''
+};
+
+const formErrors = {
+	email: '',
+	password: ''
+};
+
+let backendError = '';
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const hasUppercase = (value) => /[A-Z]/.test(value);
+const hasLowercase = (value) => /[a-z]/.test(value);
+const hasSpecial = (value) => /[^A-Za-z0-9]/.test(value);
+
+if (Astro.request.method === 'POST') {
+	const contentType = Astro.request.headers.get('content-type') ?? '';
+	let email = '';
+	let password = '';
+
+	if (contentType.includes('application/json')) {
+		const body = await Astro.request.json().catch(() => ({}));
+		email = String(body?.email ?? '').trim();
+		password = String(body?.password ?? '');
+	} else if (
+		contentType.includes('application/x-www-form-urlencoded') ||
+		contentType.includes('multipart/form-data')
+	) {
+		const formData = await Astro.request.formData();
+		email = String(formData.get('email') ?? '').trim();
+		password = String(formData.get('password') ?? '');
+	} else {
+		backendError = 'Unsupported login request content type.';
+		Astro.response.status = 415;
+	}
+
+	formValues.email = email;
+
+	if (!email) {
+		formErrors.email = 'Email is required.';
+	} else if (!emailRegex.test(email)) {
+		formErrors.email = 'Enter a valid email address.';
+	}
+
+	if (!password) {
+		formErrors.password = 'Password is required.';
+	} else if (password.length < 9) {
+		formErrors.password = 'Password must be at least 9 characters long.';
+	} else if (!hasUppercase(password) || !hasLowercase(password) || !hasSpecial(password)) {
+		formErrors.password = 'Password must include uppercase, lowercase, and a special character.';
+	}
+
+	const hasErrors = Boolean(formErrors.email || formErrors.password);
+
+	if (!hasErrors) {
+		try {
+			const response = await fetch('http://localhost:3000/auth/login', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email, password })
+			});
+
+			const data = await response.json().catch(() => ({}));
+
+			if (!response.ok) {
+				backendError = data?.error ?? 'Login failed.';
+				Astro.response.status = response.status;
+			} else {
+				const token = data?.token;
+				if (!token) {
+					backendError = 'Login token not received.';
+					Astro.response.status = 401;
+				} else {
+					const payload = jwt.decode(token);
+					const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
+					const tokenEmail = String(payload?.email ?? '').toLowerCase();
+					const isAdmin = Boolean(adminEmail && tokenEmail && tokenEmail === adminEmail);
+
+					Astro.cookies.set(
+						SESSION_COOKIE_NAME,
+						JSON.stringify({ token }),
+						{
+							path: '/',
+							httpOnly: true,
+							sameSite: 'lax',
+							secure: import.meta.env.PROD,
+							maxAge: 60 * 60
+						}
+					);
+
+					return Astro.redirect(isAdmin ? '/admin/subscriptions' : '/shop');
+				}
+			}
+		} catch {
+			backendError = 'Unable to reach the login service.';
+			Astro.response.status = 502;
+		}
+	}
+}
 ---
 
 <Layout title="TinkerTrack • Login">
@@ -43,7 +152,12 @@ import Layout from '../layouts/Layout.astro';
 							<p class="text-sm text-base-content/70">
 								Continue managing subscriptions, billing, and customer lifecycle.
 							</p>
-							<form class="mt-6 grid gap-5" action="#" method="post">
+							<form class="mt-6 grid gap-5" action="/login" method="post" novalidate>
+								{backendError && (
+									<div class="alert alert-error text-sm">
+										<span>{backendError}</span>
+									</div>
+								)}
 								<div class="form-control">
 									<label class="label">
 										<span class="label-text">Email address</span>
@@ -52,7 +166,14 @@ import Layout from '../layouts/Layout.astro';
 										type="email"
 										placeholder="you@track.app"
 										class="input input-bordered w-full"
+										name="email"
+										required
+										value={formValues.email}
+										aria-invalid={formErrors.email ? 'true' : 'false'}
 									/>
+									{formErrors.email && (
+										<p class="mt-2 text-xs text-error">{formErrors.email}</p>
+									)}
 								</div>
 								<div class="form-control">
 									<label class="label">
@@ -63,7 +184,20 @@ import Layout from '../layouts/Layout.astro';
 										type="password"
 										placeholder="••••••••"
 										class="input input-bordered w-full"
+										name="password"
+										required
+										minlength="9"
+										pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[^A-Za-z0-9]).{9,}"
+										title="At least 9 characters with uppercase, lowercase, and a special character."
+										aria-invalid={formErrors.password ? 'true' : 'false'}
 									/>
+									{formErrors.password ? (
+										<p class="mt-2 text-xs text-error">{formErrors.password}</p>
+									) : (
+										<p class="mt-2 text-xs text-base-content/60">
+											Minimum 9 characters with uppercase, lowercase, and a special character.
+										</p>
+									)}
 								</div>
 								<button class="btn btn-primary" type="submit">Sign in</button>
 							</form>

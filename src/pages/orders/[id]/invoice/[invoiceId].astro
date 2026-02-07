@@ -1,0 +1,129 @@
+---
+export const prerender = false;
+import Layout from '../../../../layouts/Layout.astro';
+import PageHeader from '../../../../components/PageHeader.astro';
+import AddressCard from '../../../../components/AddressCard.astro';
+import OrderItemsTable from '../../../../components/OrderItemsTable.astro';
+import AccessGate from '../../../../components/AccessGate.astro';
+import { getOrders, getOrderById, getInvoiceById } from '../../../../lib/checkout.js';
+
+export const getStaticPaths = () =>
+	getOrders().flatMap((order) =>
+		order.invoices.map((invoice) => ({
+			params: { id: order.id, invoiceId: invoice.number },
+			props: { order, invoice }
+		}))
+	);
+
+const session = Astro.locals?.session ?? {};
+const isLoggedIn = Boolean(session.isLoggedIn);
+
+const { order, invoice } = Astro.props;
+const activeOrder = order ?? getOrderById(Astro.params.id);
+const activeInvoice = invoice ?? getInvoiceById(Astro.params.id, Astro.params.invoiceId);
+
+const formatCurrency = (value) => (value < 0 ? `-$${Math.abs(value)}` : `$${value}`);
+const isPaid = activeInvoice?.status === 'Paid';
+---
+
+<Layout title={`TinkerTrack • ${activeInvoice?.number ?? 'Invoice'}`} isLoggedIn={isLoggedIn}>
+	{
+		isLoggedIn ? (
+			<section class="relative overflow-hidden">
+				<div class="mx-auto max-w-6xl px-6 py-16">
+					<PageHeader
+						badge="Invoice"
+						title={`Order ${activeOrder?.id ?? '—'} / ${activeInvoice?.number ?? 'Invoice'}`}
+						description="Invoice record with products, taxes, and payment status."
+					>
+						<div slot="actions">
+							{!isPaid && <button class="btn btn-primary btn-sm">Payment</button>}
+							<button class="btn btn-outline btn-sm">Download</button>
+							<a class="btn btn-ghost btn-sm" href="/orders">Close</a>
+						</div>
+					</PageHeader>
+
+					{activeOrder && activeInvoice ? (
+						<>
+							<div class="mt-10 grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+								<div class="card bg-base-200/70 shadow-xl backdrop-blur">
+									<div class="card-body gap-4">
+										<div>
+											<p class="text-xs uppercase tracking-widest text-base-content/60">Invoice</p>
+											<h2 class="font-display mt-2 text-2xl">{activeInvoice.number}</h2>
+										</div>
+										<div class="grid gap-3 text-sm text-base-content/70 sm:grid-cols-3">
+											<div>
+												<p class="text-xs uppercase tracking-widest text-base-content/60">Invoice date</p>
+												<p class="mt-2 font-medium text-base-content">{activeInvoice.invoiceDate}</p>
+											</div>
+											<div>
+												<p class="text-xs uppercase tracking-widest text-base-content/60">Due date</p>
+												<p class="mt-2 font-medium text-base-content">{activeInvoice.dueDate}</p>
+											</div>
+											<div>
+												<p class="text-xs uppercase tracking-widest text-base-content/60">Source</p>
+												<p class="mt-2 font-medium text-base-content">{activeInvoice.source}</p>
+											</div>
+										</div>
+										<div class="flex flex-wrap items-center gap-3">
+											<span class="badge badge-outline">{activeInvoice.status}</span>
+											<span class="text-sm text-base-content/70">Payment term: {activeInvoice.paymentTerm}</span>
+										</div>
+									</div>
+								</div>
+
+								<AddressCard title="Address" address={activeOrder.billingAddress} />
+							</div>
+
+							<OrderItemsTable items={activeOrder.items}>
+								<div class="mt-4 grid gap-6 text-sm text-base-content/70 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)]">
+									<div class="rounded-2xl border border-base-300/70 bg-base-100/70 p-4">
+										<p class="text-xs uppercase tracking-widest text-base-content/60">Payment term</p>
+										<p class="mt-2 font-medium text-base-content">{activeInvoice.paymentTerm}</p>
+									</div>
+									<div class="grid gap-2">
+										<div class="flex items-center justify-between">
+											<span>Untaxed amount</span>
+											<span>{formatCurrency(activeOrder.summary.subtotal)}</span>
+										</div>
+										<div class="flex items-center justify-between">
+											<span>Tax</span>
+											<span>{formatCurrency(activeOrder.summary.taxes)}</span>
+										</div>
+										<div class="flex items-center justify-between border-t border-base-300/70 pt-3 text-base-content">
+											<span>Total</span>
+											<span class="font-semibold">{formatCurrency(activeOrder.summary.total)}</span>
+										</div>
+										<div class="flex items-center justify-between text-xs text-base-content/60">
+											<span>Paid on</span>
+											<span>{activeInvoice.paidOn ?? '—'}</span>
+										</div>
+										<div class="flex items-center justify-between text-xs text-base-content/60">
+											<span>Amount due</span>
+											<span>{formatCurrency(activeInvoice.amountDue)}</span>
+										</div>
+									</div>
+								</div>
+							</OrderItemsTable>
+						</>
+					) : (
+						<div class="mt-10 card bg-base-200/70 shadow-xl backdrop-blur">
+							<div class="card-body">
+								<h2 class="font-display text-2xl">Invoice not found</h2>
+								<p class="text-base-content/70">Return to your order list to select another invoice.</p>
+								<a class="btn btn-primary" href="/orders">Back to orders</a>
+							</div>
+						</div>
+					)}
+				</div>
+			</section>
+		) : (
+			<AccessGate
+				badge="Login required"
+				title="Sign in to view this invoice"
+				description="Invoices are visible after you sign in."
+			/>
+		)
+	}
+</Layout>

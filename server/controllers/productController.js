@@ -1,4 +1,4 @@
-const db = require("../db/db");
+const db = require("../../db/db").default;
 
 exports.createProduct = (req, res) => {
   const { productName, productType, salesPrice, costPrice } = req.body;
@@ -20,4 +20,3 @@ exports.getProducts = (req, res) => {
     res.json(rows);
   });
 };
-    

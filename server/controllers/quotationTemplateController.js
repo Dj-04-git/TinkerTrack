@@ -1,4 +1,4 @@
-const db = require("../db/db");
+const db = require("../../db/db").default;
 
 // CREATE QUOTATION TEMPLATE (Admin)
 exports.createTemplate = (req, res) => {
@@ -7,6 +7,7 @@ exports.createTemplate = (req, res) => {
   db.run(
     `INSERT INTO quotation_templates (templateName, validityDays, planId)
      VALUES (?, ?, ?)`,
+
     [templateName, validityDays, planId],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });

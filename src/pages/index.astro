@@ -1,8 +1,12 @@
 ---
+export const prerender = false;
 import Layout from '../layouts/Layout.astro';
+
+const session = Astro.locals?.session ?? {};
+const isLoggedIn = Boolean(session.isLoggedIn);
 ---
 
-<Layout title="TinkerTrack • Home">
+<Layout title="TinkerTrack • Home" isLoggedIn={isLoggedIn}>
 	<main>
 		<section class="relative flex-1 overflow-hidden">
 			<div class="pointer-events-none absolute inset-0">

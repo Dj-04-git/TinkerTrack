@@ -1,4 +1,4 @@
-const db = require("../db/db");
+const db = require("../../db/db").default;
 
 exports.createVariant = (req, res) => {
   const { productId } = req.params;

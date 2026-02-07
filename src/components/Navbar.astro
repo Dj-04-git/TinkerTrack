@@ -31,7 +31,12 @@ const { isLoggedIn = false } = Astro.props;
 						<li><a href="/shop">Shop</a></li>
 						{
 							isLoggedIn ? (
-								<li><a href="/profile">Profile</a></li>
+								<>
+									<li><a href="/orders">My orders</a></li>
+									<li><a href="/cart">Cart</a></li>
+									<li><a href="/profile">Profile</a></li>
+									<li><a href="/logout">Logout</a></li>
+								</>
 							) : (
 								<>
 									<li><a href="/login">Login</a></li>
@@ -50,18 +55,24 @@ const { isLoggedIn = false } = Astro.props;
 				<ul class="menu menu-horizontal gap-2">
 					<li><a href="/">Home</a></li>
 					<li><a href="/shop">Shop</a></li>
+					{isLoggedIn && <li><a href="/orders">My orders</a></li>}
+					{isLoggedIn && <li><a href="/cart">Cart</a></li>}
 				</ul>
 			</div>
 			<div class="navbar-end gap-3">
 				{
 					isLoggedIn ? (
-						<a class="btn btn-ghost btn-circle" href="/profile" aria-label="Profile">
-							<div class="avatar placeholder">
-								<div class="bg-primary text-primary-content w-10 rounded-full">
-									<span class="text-sm">TR</span>
+						<>
+							<a class="btn btn-outline btn-sm" href="/cart">Cart</a>
+							<a class="btn btn-ghost btn-sm" href="/logout">Logout</a>
+							<a class="btn btn-ghost btn-circle" href="/profile" aria-label="Profile">
+								<div class="avatar placeholder">
+									<div class="bg-primary text-primary-content w-10 rounded-full">
+										<span class="text-sm">TR</span>
+									</div>
 								</div>
-							</div>
-						</a>
+							</a>
+						</>
 					) : (
 						<div class="hidden items-center gap-2 lg:flex">
 							<a class="btn btn-ghost" href="/login">Login</a>

@@ -1,4 +1,4 @@
-const db = require("../db/db");
+const db = require("../../db/db").default;
 
 // CREATE INVOICE FROM SUBSCRIPTION (AUTO)
 exports.createInvoice = (req, res) => {
@@ -9,6 +9,7 @@ exports.createInvoice = (req, res) => {
   db.run(
     `INSERT INTO invoices (invoiceNumber, customerId, subscriptionId)
      VALUES (?, ?, ?)`,
+
     [invoiceNumber, customerId, subscriptionId],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });

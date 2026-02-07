@@ -1,5 +1,7 @@
 ---
+export const prerender = false;
 import Layout from '../layouts/Layout.astro';
+import AccessGate from '../components/AccessGate.astro';
 
 const user = {
 	name: 'Elena Rivera',
@@ -20,98 +22,108 @@ const recentOrders = [
 	{ name: 'Retention Lab', status: 'Active', renewal: 'Apr 02, 2026' },
 	{ name: 'Quotient Billing Studio', status: 'Pending', renewal: 'Apr 18, 2026' }
 ];
+
+const session = Astro.locals?.session ?? {};
+const isLoggedIn = Boolean(session.isLoggedIn);
 ---
 
-<Layout title="TinkerTrack • Profile" isLoggedIn={true}>
-	<main>
-		<section class="relative flex-1 overflow-hidden">
-			<div class="pointer-events-none absolute inset-0">
-				<div class="absolute -top-20 right-10 h-72 w-72 rounded-full bg-primary/15 blur-3xl"></div>
-				<div class="absolute bottom-0 left-10 h-80 w-80 rounded-full bg-accent/20 blur-3xl"></div>
-			</div>
-
-			<div class="mx-auto grid max-w-6xl gap-8 px-6 py-14 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-start">
-				<div class="grid gap-6">
-					<div class="flex flex-wrap items-center justify-between gap-4">
-						<div>
-							<p class="badge badge-outline">Account profile</p>
-							<h1 class="font-display mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
-								{user.name}
-							</h1>
-							<p class="mt-3 text-base-content/70">
-								Manage your subscription workspace, billing preferences, and team details.
-							</p>
-						</div>
-						<div class="flex items-center gap-3">
-							<button class="btn btn-outline btn-sm">Edit profile</button>
-							<button class="btn btn-primary btn-sm">View billing</button>
-						</div>
-					</div>
-
-					<div class="grid gap-4 sm:grid-cols-3">
-						{quickStats.map((stat) => (
-							<div class="rounded-2xl border border-base-200/70 bg-base-100/70 p-4 text-sm shadow-sm">
-								<p class="text-base-content/60">{stat.label}</p>
-								<p class="mt-2 text-lg font-semibold">{stat.value}</p>
-							</div>
-						))}
-					</div>
-
-					<div class="card bg-base-200/70 shadow-2xl backdrop-blur">
-						<div class="card-body gap-4">
-							<h2 class="font-display text-2xl">User details</h2>
-							<div class="grid gap-4 text-sm text-base-content/70">
-								<div class="flex items-center justify-between border-b border-base-300/60 pb-3">
-									<span class="text-base-content/60">Company</span>
-									<span class="font-medium text-base-content">{user.company}</span>
-								</div>
-								<div class="flex items-center justify-between border-b border-base-300/60 pb-3">
-									<span class="text-base-content/60">Email</span>
-									<span class="font-medium text-base-content">{user.email}</span>
-								</div>
-								<div class="flex items-center justify-between border-b border-base-300/60 pb-3">
-									<span class="text-base-content/60">Phone</span>
-									<span class="font-medium text-base-content">{user.phone}</span>
-								</div>
-								<div class="flex items-center justify-between">
-									<span class="text-base-content/60">Address</span>
-									<span class="font-medium text-base-content">{user.address}</span>
-								</div>
-							</div>
-						</div>
-					</div>
+<Layout title="TinkerTrack • Profile" isLoggedIn={isLoggedIn}>
+	{
+		isLoggedIn ? (
+			<section class="relative flex-1 overflow-hidden">
+				<div class="pointer-events-none absolute inset-0">
+					<div class="absolute -top-20 right-10 h-72 w-72 rounded-full bg-primary/15 blur-3xl"></div>
+					<div class="absolute bottom-0 left-10 h-80 w-80 rounded-full bg-accent/20 blur-3xl"></div>
 				</div>
 
-				<div class="grid gap-6">
-					<div class="card bg-base-200/70 shadow-xl backdrop-blur">
-						<div class="card-body gap-4">
-							<div class="flex items-center justify-between">
-								<h2 class="font-display text-2xl">My orders</h2>
-								<a class="link-hover text-sm" href="/shop">Browse plans</a>
-							</div>
-							<div class="grid gap-3">
-								{recentOrders.map((order) => (
-									<div class="rounded-2xl border border-base-300/70 bg-base-100/70 p-4">
-										<p class="font-medium">{order.name}</p>
-										<div class="mt-2 flex items-center justify-between text-sm text-base-content/60">
-											<span>{order.status}</span>
-											<span>Renews {order.renewal}</span>
-										</div>
-									</div>
-								))}
-							</div>
-						</div>
-					</div>
-
-					<div class="rounded-3xl border border-base-200/70 bg-base-100/70 p-6 shadow-sm">
-						<h3 class="font-display text-xl">Workspace preferences</h3>
-						<p class="mt-2 text-sm text-base-content/70">
-							Set tax locations, invoice templates, and team permissions from one place.
+				<div class="mx-auto grid max-w-6xl gap-8 px-6 py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-start">
+					<div class="grid gap-6">
+				<div class="flex flex-wrap items-center justify-between gap-4">
+					<div>
+						<p class="badge badge-outline">Account profile</p>
+						<h1 class="font-display mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
+							{user.name}
+						</h1>
+						<p class="mt-3 text-base-content/70">
+							Manage your subscription workspace, billing preferences, and team details.
 						</p>
-						<button class="btn btn-outline btn-sm mt-4">Open settings</button>
+					</div>
+					<div class="flex items-center gap-3">
+						<button class="btn btn-outline btn-sm">Edit profile</button>
+						<button class="btn btn-primary btn-sm">View billing</button>
+					</div>
+				</div>
+
+				<div class="grid gap-4 sm:grid-cols-3">
+					{quickStats.map((stat) => (
+						<div class="rounded-2xl border border-base-200/70 bg-base-100/70 p-4 text-sm shadow-sm">
+							<p class="text-base-content/60">{stat.label}</p>
+							<p class="mt-2 text-lg font-semibold">{stat.value}</p>
+						</div>
+					))}
+				</div>
+
+				<div class="card bg-base-200/70 shadow-2xl backdrop-blur">
+					<div class="card-body gap-4">
+						<h2 class="font-display text-2xl">User details</h2>
+						<div class="grid gap-4 text-sm text-base-content/70">
+							<div class="flex items-center justify-between border-b border-base-300/60 pb-3">
+								<span class="text-base-content/60">Company</span>
+								<span class="font-medium text-base-content">{user.company}</span>
+							</div>
+							<div class="flex items-center justify-between border-b border-base-300/60 pb-3">
+								<span class="text-base-content/60">Email</span>
+								<span class="font-medium text-base-content">{user.email}</span>
+							</div>
+							<div class="flex items-center justify-between border-b border-base-300/60 pb-3">
+								<span class="text-base-content/60">Phone</span>
+								<span class="font-medium text-base-content">{user.phone}</span>
+							</div>
+							<div class="flex items-center justify-between">
+								<span class="text-base-content/60">Address</span>
+								<span class="font-medium text-base-content">{user.address}</span>
+							</div>
+						</div>
 					</div>
 				</div>
 			</div>
-		</section>
-	</main>
+
+			<div class="grid gap-6">
+				<div class="card bg-base-200/70 shadow-xl backdrop-blur">
+					<div class="card-body gap-4">
+						<div class="flex items-center justify-between">
+							<h2 class="font-display text-2xl">My orders</h2>
+							<a class="link-hover text-sm" href="/orders">View all</a>
+						</div>
+						<div class="grid gap-3">
+							{recentOrders.map((order) => (
+								<div class="rounded-2xl border border-base-300/70 bg-base-100/70 p-4">
+									<p class="font-medium">{order.name}</p>
+									<div class="mt-2 flex items-center justify-between text-sm text-base-content/60">
+										<span>{order.status}</span>
+										<span>Renews {order.renewal}</span>
+									</div>
+								</div>
+							))}
+						</div>
+					</div>
+				</div>
+
+				<div class="rounded-3xl border border-base-200/70 bg-base-100/70 p-6 shadow-sm">
+					<h3 class="font-display text-xl">Workspace preferences</h3>
+					<p class="mt-2 text-sm text-base-content/70">
+						Set tax locations, invoice templates, and team permissions from one place.
+					</p>
+					<button class="btn btn-outline btn-sm mt-4">Open settings</button>
+				</div>
+				</div>
+			</section>
+		) : (
+			<AccessGate
+				badge="Login required"
+				title="Sign in to view your profile"
+				description="Profile and billing details are available after you sign in."
+			/>
+		)
+	}
 </Layout>

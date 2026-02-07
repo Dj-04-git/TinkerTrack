@@ -1,0 +1,71 @@
+
+---
+/**
+ * OrderItemsTable — Responsive product line‑items table.
+ * Reused on order detail page, invoice page, and anywhere
+ * a grid of products with qty / unit price / taxes / amount is needed.
+ */
+interface Item {
+	name: string;
+	quantity: number;
+	unitPrice: number;
+	tax: string;
+	amount: number;
+}
+
+interface Props {
+	items: Item[];
+	title?: string;
+}
+
+const { items, title = 'Products' } = Astro.props;
+
+function formatCurrency(value: number) {
+	return value < 0 ? `-$${Math.abs(value)}` : `$${value}`;
+}
+---
+
+<div class="card bg-base-200/70 shadow-xl backdrop-blur">
+	<div class="card-body gap-4">
+		<h2 class="font-display text-2xl">{title}</h2>
+
+		{/* ── Desktop table ── */}
+		<div class="hidden overflow-hidden rounded-2xl border border-base-300/70 sm:block">
+			<div class="grid grid-cols-[minmax(0,1.6fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_minmax(0,0.6fr)] bg-base-100/70 px-4 py-3 text-xs uppercase tracking-widest text-base-content/60">
+				<span>Product name</span>
+				<span>Qty</span>
+				<span>Unit price</span>
+				<span>Taxes</span>
+				<span>Amount</span>
+			</div>
+			{items.map((item) => (
+				<div class="grid grid-cols-[minmax(0,1.6fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_minmax(0,0.6fr)] border-t border-base-300/70 px-4 py-3 text-sm text-base-content/70">
+					<span class="text-base-content">{item.name}</span>
+					<span>{item.quantity}</span>
+					<span>{formatCurrency(item.unitPrice)}</span>
+					<span>{item.tax}</span>
+					<span class="text-base-content">{formatCurrency(item.amount)}</span>
+				</div>
+			))}
+		</div>
+
+		{/* ── Mobile stack ── */}
+		<div class="grid gap-3 sm:hidden">
+			{items.map((item) => (
+				<div class="rounded-2xl border border-base-300/70 bg-base-100/70 p-4 text-sm">
+					<p class="font-medium text-base-content">{item.name}</p>
+					<div class="mt-2 grid grid-cols-2 gap-2 text-base-content/70">
+						<span>Qty: {item.quantity}</span>
+						<span>Unit: {formatCurrency(item.unitPrice)}</span>
+						<span>Tax: {item.tax}</span>
+						<span class="font-medium text-base-content">
+							{formatCurrency(item.amount)}
+						</span>
+					</div>
+				</div>
+			))}
+		</div>
+
+		<slot />
+	</div>
+</div>

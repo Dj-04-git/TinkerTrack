@@ -1,13 +1,17 @@
 ---
+export const prerender = false;
 import Layout from '../layouts/Layout.astro';
 import SubscriptionCard from '../components/SubscriptionCard.astro';
 import { getSubscriptions } from '../lib/subscriptions.js';
+
+const session = Astro.locals?.session ?? {};
+const isLoggedIn = Boolean(session.isLoggedIn);
 
 const subscriptions = getSubscriptions();
 const filters = ['All', 'Analytics', 'Automation', 'Billing'];
 ---
 
-<Layout title="TinkerTrack • Shop">
+<Layout title="TinkerTrack • Shop" isLoggedIn={isLoggedIn}>
 	<section class="relative overflow-hidden">
 		<div class="pointer-events-none absolute inset-0">
 			<div class="absolute -top-28 left-10 h-72 w-72 rounded-full bg-primary/20 blur-3xl"></div>

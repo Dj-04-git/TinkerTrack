@@ -1,5 +1,14 @@
 ---
+export const prerender = false;
 import Layout from '../layouts/Layout.astro';
+import 'dotenv/config';
+
+const session = Astro.locals?.session ?? {};
+if (session.isLoggedIn) {
+	return Astro.redirect('/shop');
+}
+
+const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:3000';
 ---
 
 <Layout title="TinkerTrack • Register">
@@ -43,55 +52,90 @@ import Layout from '../layouts/Layout.astro';
 							<p class="text-sm text-base-content/70">
 								Add the essentials to start configuring subscription plans.
 							</p>
-							<form class="mt-6 grid gap-5" action="#" method="post">
+							<form
+								class="mt-6 grid gap-5"
+								data-backend-url={backendUrl}
+								id="register-form"
+							>
 								<div class="form-control">
 									<label class="label">
 										<span class="label-text">Full name</span>
 									</label>
 									<input
+										name="name"
 										type="text"
 										placeholder="Avery Lane"
 										class="input input-bordered w-full"
 									/>
+									<p class="mt-2 text-xs text-error" data-error-for="name"></p>
 								</div>
 								<div class="form-control">
 									<label class="label">
 										<span class="label-text">Email address</span>
 									</label>
 									<input
+										name="email"
 										type="email"
 										placeholder="you@track.app"
 										class="input input-bordered w-full"
 									/>
+									<p class="mt-2 text-xs text-error" data-error-for="email"></p>
 								</div>
 								<div class="form-control">
 									<label class="label">
 										<span class="label-text">Password</span>
 									</label>
 									<input
+										name="password"
 										type="password"
 										placeholder="At least 8 characters"
 										class="input input-bordered w-full"
 									/>
+									<p class="mt-2 text-xs text-error" data-error-for="password"></p>
 								</div>
 								<div class="form-control">
 									<label class="label">
-										<span class="label-text">Confirm password</span>
+										<span class="label-text">Phone</span>
 									</label>
 									<input
-										type="password"
-										placeholder="Repeat password"
+										name="phone"
+										type="tel"
+										placeholder="1234567890"
 										class="input input-bordered w-full"
 									/>
+									<p class="mt-2 text-xs text-error" data-error-for="phone"></p>
 								</div>
-								<label class="label cursor-pointer justify-start gap-3">
-									<input type="checkbox" class="checkbox checkbox-primary" />
-									<span class="label-text text-sm">
-										I agree to the terms and privacy policy
-									</span>
-								</label>
+								<div class="form-control">
+									<label class="label">
+										<span class="label-text">Location</span>
+									</label>
+									<input
+										name="location"
+										type="text"
+										placeholder="Nowhere"
+										class="input input-bordered w-full"
+									/>
+									<p class="mt-2 text-xs text-error" data-error-for="location"></p>
+								</div>
+								<div class="form-control">
+									<label class="label">
+										<span class="label-text">About</span>
+									</label>
+									<textarea
+										name="about"
+										rows="3"
+										placeholder="Student"
+										class="textarea textarea-bordered w-full"
+									></textarea>
+									<p class="mt-2 text-xs text-error" data-error-for="about"></p>
+								</div>
 								<button class="btn btn-primary" type="submit">Create account</button>
 							</form>
+							<div class="toast toast-top toast-end hidden" id="register-toast">
+								<div class="alert alert-error">
+									<span id="register-toast-message"></span>
+								</div>
+							</div>
 							<p class="mt-4 text-sm text-base-content/70">
 								Already have an account? <a class="link-hover" href="/login">Sign in</a>
 							</p>
@@ -102,3 +146,103 @@ import Layout from '../layouts/Layout.astro';
 		</section>
 	</main>
 </Layout>
+
+<script>
+	const form = document.getElementById('register-form');
+	const toast = document.getElementById('register-toast');
+	const toastMessage = document.getElementById('register-toast-message');
+
+	const showToast = (message) => {
+		toastMessage.textContent = message;
+		toast.classList.remove('hidden');
+		setTimeout(() => toast.classList.add('hidden'), 4000);
+	};
+
+	const setError = (field, message) => {
+		const el = document.querySelector(`[data-error-for="${field}"]`);
+		if (el) el.textContent = message;
+	};
+
+	const clearErrors = () => {
+		document.querySelectorAll('[data-error-for]').forEach((el) => {
+			el.textContent = '';
+		});
+	};
+
+	const validatePassword = (value) => {
+		const errors = [];
+		if (value.length <= 8) errors.push('Password must be longer than 8 characters.');
+		if (!/[A-Z]/.test(value)) errors.push('Password must include an uppercase letter.');
+		if (!/[a-z]/.test(value)) errors.push('Password must include a lowercase letter.');
+		if (!/[^\w\s]/.test(value)) errors.push('Password must include a special character.');
+		return errors;
+	};
+
+	form?.addEventListener('submit', async (event) => {
+		event.preventDefault();
+		clearErrors();
+
+		const formData = new FormData(form);
+		const payload = {
+			name: String(formData.get('name') ?? '').trim(),
+			email: String(formData.get('email') ?? '').trim(),
+			password: String(formData.get('password') ?? ''),
+			phone: Number(String(formData.get('phone') ?? '').trim()),
+			location: String(formData.get('location') ?? '').trim(),
+			about: String(formData.get('about') ?? '').trim()
+		};
+
+		let hasErrors = false;
+		if (!payload.name) {
+			setError('name', 'Name is required.');
+			hasErrors = true;
+		}
+		if (!payload.email) {
+			setError('email', 'Email is required.');
+			hasErrors = true;
+		}
+		if (!payload.password) {
+			setError('password', 'Password is required.');
+			hasErrors = true;
+		} else {
+			const passwordErrors = validatePassword(payload.password);
+			if (passwordErrors.length) {
+				setError('password', passwordErrors.join(' '));
+				hasErrors = true;
+			}
+		}
+		if (!payload.phone || Number.isNaN(payload.phone)) {
+			setError('phone', 'Phone must be a valid number.');
+			hasErrors = true;
+		}
+		if (!payload.location) {
+			setError('location', 'Location is required.');
+			hasErrors = true;
+		}
+		if (!payload.about) {
+			setError('about', 'About is required.');
+			hasErrors = true;
+		}
+		if (hasErrors) return;
+
+		try {
+			const response = await fetch(`${form.dataset.backendUrl}/auth/register`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(payload)
+			});
+
+			const data = await response.json();
+			if (!response.ok) {
+				showToast(data.error ?? 'Unable to register.');
+				return;
+			}
+
+			window.location.href = `/verify-otp?email=${encodeURIComponent(payload.email)}`;
+		} catch (error) {
+			showToast('Network error. Please try again.');
+		}
+	});
+</script>

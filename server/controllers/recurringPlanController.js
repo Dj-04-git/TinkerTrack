@@ -1,4 +1,4 @@
-const db = require("../db/db");
+const db = require("../../db/db").default;
 
 // CREATE PLAN
 exports.createPlan = (req, res) => {
@@ -7,6 +7,7 @@ exports.createPlan = (req, res) => {
   db.run(
     `INSERT INTO recurring_plans (planName, price, billingPeriod)
      VALUES (?, ?, ?)`,
+
     [planName, price, billingPeriod],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
@@ -31,6 +32,7 @@ exports.assignPlanToProduct = (req, res) => {
   db.run(
     `INSERT OR IGNORE INTO product_plans (productId, planId)
      VALUES (?, ?)`,
+
     [productId, planId],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });

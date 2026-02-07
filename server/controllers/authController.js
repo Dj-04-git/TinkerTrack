@@ -1,8 +1,8 @@
-import db from "../db/db.js";
+import db from "../../db/db.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
-import { config } from "../config/config.js";
+import { config } from "../../config/config.js";
 
 let transporter;
 
@@ -97,7 +97,7 @@ export const login = (req, res) => {
     if (!match) return res.status(400).json({ error: "Invalid password" });
 
   const token = jwt.sign(
-  { id: user.id },
+  { id: user.id, email: user.email },
   config.JWT_SECRET,
   { expiresIn: "1h" }
 );

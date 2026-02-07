@@ -1,0 +1,123 @@
+---
+export const prerender = false;
+import Layout from '../../layouts/Layout.astro';
+import PageHeader from '../../components/PageHeader.astro';
+import AddressCard from '../../components/AddressCard.astro';
+import OrderItemsTable from '../../components/OrderItemsTable.astro';
+import AccessGate from '../../components/AccessGate.astro';
+import { getOrders, getOrderById } from '../../lib/checkout.js';
+
+export const getStaticPaths = () =>
+	getOrders().map((order) => ({
+		params: { id: order.id },
+		props: { order }
+	}));
+
+const session = Astro.locals?.session ?? {};
+const isLoggedIn = Boolean(session.isLoggedIn);
+
+const { order } = Astro.props;
+const activeOrder = order ?? getOrderById(Astro.params.id);
+---
+
+<Layout title={`TinkerTrack • ${activeOrder?.id ?? 'Order'}`} isLoggedIn={isLoggedIn}>
+	{
+		isLoggedIn ? (
+			<section class="relative overflow-hidden">
+				<div class="mx-auto max-w-6xl px-6 py-16">
+					<PageHeader
+						badge="Order details"
+						title={`Order ${activeOrder?.id ?? 'Not found'}`}
+						description="View subscription status, invoices, and totals at a glance."
+					>
+						<div slot="actions">
+							<button class="btn btn-outline btn-sm">Download PDF</button>
+							<button class="btn btn-outline btn-sm">Renew</button>
+							<a class="btn btn-ghost btn-sm" href="/orders">Close</a>
+						</div>
+					</PageHeader>
+
+					{activeOrder ? (
+						<div class="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+							<div class="grid gap-6">
+								<div class="card bg-base-200/70 shadow-xl backdrop-blur">
+									<div class="card-body gap-4">
+										<div class="flex flex-wrap items-center justify-between gap-3">
+											<div>
+												<h2 class="font-display text-2xl">Your subscription</h2>
+												<p class="text-sm text-base-content/70">{activeOrder.subscription}</p>
+											</div>
+											<span class="badge badge-outline">{activeOrder.status}</span>
+										</div>
+										<div class="grid gap-3 text-sm text-base-content/70">
+											<div class="flex items-center justify-between">
+												<span>Plan</span>
+												<span class="font-medium text-base-content">{activeOrder.plan}</span>
+											</div>
+											<div class="flex items-center justify-between">
+												<span>Start date</span>
+												<span class="font-medium text-base-content">{activeOrder.startDate}</span>
+											</div>
+											<div class="flex items-center justify-between">
+												<span>End date</span>
+												<span class="font-medium text-base-content">{activeOrder.endDate}</span>
+											</div>
+										</div>
+										<div class="rounded-2xl border border-base-300/70 bg-base-100/70 p-4">
+											<p class="text-xs uppercase tracking-widest text-base-content/60">Last invoices</p>
+											<div class="mt-3 grid gap-2 text-sm">
+												{activeOrder.invoices.map((invoice) => (
+													<a
+														class="flex items-center justify-between rounded-xl p-2 transition hover:bg-base-200/70"
+														href={`/orders/${activeOrder.id}/invoice/${invoice.number}`}
+													>
+														<span>{invoice.number}</span>
+														<span class="badge badge-outline">{invoice.status}</span>
+														<span class="font-medium">${invoice.amount}</span>
+													</a>
+												))}
+											</div>
+										</div>
+									</div>
+								</div>
+
+								<AddressCard address={activeOrder.billingAddress} />
+							</div>
+
+							<OrderItemsTable items={activeOrder.items}>
+								<div class="mt-4 grid gap-2 text-sm text-base-content/70">
+									<div class="flex items-center justify-between">
+										<span>Subtotal</span>
+										<span>${activeOrder.summary.subtotal}</span>
+									</div>
+									<div class="flex items-center justify-between">
+										<span>Taxes</span>
+										<span>${activeOrder.summary.taxes}</span>
+									</div>
+									<div class="flex items-center justify-between border-t border-base-300/70 pt-3 text-base-content">
+										<span>Total</span>
+										<span class="font-semibold">${activeOrder.summary.total}</span>
+									</div>
+								</div>
+							</OrderItemsTable>
+						</div>
+					) : (
+						<div class="mt-10 card bg-base-200/70 shadow-xl backdrop-blur">
+							<div class="card-body">
+								<h2 class="font-display text-2xl">Order not found</h2>
+								<p class="text-base-content/70">Return to your order list to select another order.</p>
+								<a class="btn btn-primary" href="/orders">Back to orders</a>
+							</div>
+						</div>
+					)}
+				</div>
+			</section>
+		) : (
+			<AccessGate
+				badge="Login required"
+				title="Sign in to view order details"
+				description="This page includes invoices and billing data tied to your workspace."
+			/>
+		)
+	}
+</Layout>
