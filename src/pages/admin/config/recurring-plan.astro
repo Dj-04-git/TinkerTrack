@@ -8,9 +8,33 @@ const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
 const isAdmin = Boolean(session.isAdmin);
 
-// Sample product lines for demonstration
+// Fetch recurring plans from API
+let recurringPlans: any[] = [];
+let products: any[] = [];
+let error: string | null = null;
+
+if (isLoggedIn && isAdmin) {
+	try {
+		// Fetch recurring plans
+		const plansResponse = await fetch('http://localhost:3000/recurring-plans');
+		if (plansResponse.ok) {
+			recurringPlans = await plansResponse.json();
+		} else {
+			error = 'Failed to load recurring plans';
+		}
+
+		// Fetch products for dropdown
+		const productsResponse = await fetch('http://localhost:3000/products');
+		if (productsResponse.ok) {
+			products = await productsResponse.json();
+		}
+	} catch (e) {
+		error = 'Unable to connect to the server';
+		console.error('Recurring plan fetch error:', e);
+	}
+}
+
 const productLines: Array<{ product: string; variant: string; price: number; minQty: number }> = [];
-const productOptions = ['Demo Product', 'Fresh Milk Delivery', 'Organic Vegetable Box', 'Weekly Bread Basket'];
 const variantOptions = ['Default', 'Small', 'Large'];
 ---
 
@@ -190,8 +214,8 @@ const variantOptions = ['Default', 'Small', 'Large'];
 										<td>
 											<select class="select select-bordered bg-base-100/80 w-full" x-model="newProduct">
 												<option value="" disabled selected>Select product...</option>
-												{productOptions.map((product) => (
-													<option value={product}>{product}</option>
+												{products.map((product: any) => (
+													<option value={product.id}>{product.productName}</option>
 												))}
 											</select>
 										</td>
@@ -223,7 +247,7 @@ const variantOptions = ['Default', 'Small', 'Large'];
 										<td>
 											<button
 												class="btn btn-ghost btn-xs text-primary"
-												@click="
+												x-on:click="
 													if (newProduct && newPrice && newMinQty) {
 														productLines.push({ product: newProduct, variant: newVariant || 'Default', price: Number(newPrice), minQty: Number(newMinQty) });
 														newProduct=''; newVariant=''; newPrice=''; newMinQty='';

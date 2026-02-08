@@ -186,3 +186,69 @@ exports.getProductCount = (req, res) => {
     res.json({ count: row?.count || 0 });
   });
 };
+
+// ADD PLAN TO PRODUCT
+exports.addPlanToProduct = (req, res) => {
+  const { productId } = req.params;
+  const { planId } = req.body;
+
+  if (!planId) {
+    return res.status(400).json({ error: "Plan ID is required" });
+  }
+
+  // Verify product exists
+  db.get(`SELECT id FROM products WHERE id = ?`, [productId], (err, product) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!product) return res.status(404).json({ error: "Product not found" });
+
+    // Verify plan exists
+    db.get(`SELECT id, planName, price, billingPeriod FROM recurring_plans WHERE id = ?`, [planId], (err, plan) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!plan) return res.status(404).json({ error: "Plan not found" });
+
+      // Check if already assigned
+      db.get(
+        `SELECT id FROM product_plans WHERE productId = ? AND planId = ?`,
+        [productId, planId],
+        (err, existing) => {
+          if (err) return res.status(500).json({ error: err.message });
+          if (existing) {
+            return res.status(409).json({ error: "Plan is already assigned to this product" });
+          }
+
+          db.run(
+            `INSERT INTO product_plans (productId, planId) VALUES (?, ?)`,
+            [productId, planId],
+            function (err) {
+              if (err) return res.status(500).json({ error: err.message });
+              res.status(201).json({
+                message: "Plan added to product",
+                id: this.lastID,
+                productId: parseInt(productId),
+                planId: parseInt(planId),
+                plan: plan
+              });
+            }
+          );
+        }
+      );
+    });
+  });
+};
+
+// REMOVE PLAN FROM PRODUCT
+exports.removePlanFromProduct = (req, res) => {
+  const { productId, planId } = req.params;
+
+  db.run(
+    `DELETE FROM product_plans WHERE productId = ? AND planId = ?`,
+    [productId, planId],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) {
+        return res.status(404).json({ error: "Plan assignment not found" });
+      }
+      res.json({ message: "Plan removed from product" });
+    }
+  );
+};

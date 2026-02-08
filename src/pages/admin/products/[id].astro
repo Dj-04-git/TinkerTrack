@@ -11,67 +11,60 @@ const isAdmin = Boolean(session.isAdmin);
 // Get product ID from URL
 const { id } = Astro.params;
 
-// Mock product data (server-side)
-const mockProducts = [
-	{ id: 1, name: 'Fresh Milk Delivery', type: 'Service', salesPrice: 12.99, costPrice: 8.50, tax: 'GST 5%' },
-	{ id: 2, name: 'Organic Vegetable Box', type: 'Goods', salesPrice: 35.00, costPrice: 22.00, tax: 'GST 5%' },
-	{ id: 3, name: 'Weekly Bread Basket', type: 'Goods', salesPrice: 18.50, costPrice: 11.00, tax: 'None' },
-	{ id: 4, name: 'Coffee Bean Subscription', type: 'Goods', salesPrice: 24.99, costPrice: 15.00, tax: 'GST 5%' },
-	{ id: 5, name: 'Laundry Service', type: 'Service', salesPrice: 45.00, costPrice: 25.00, tax: 'GST 18%' },
-];
+// Fetch product from API
+let product: any = null;
+let recurringPrices: any[] = [];
+let variants: any[] = [];
+let availablePlans: any[] = [];
+let error: string | null = null;
 
-// Mock recurring prices for products
-const mockRecurringPrices: Record<number, Array<{ plan: string; price: number; minQty: number; startDate: string; endDate: string }>> = {
-	1: [
-		{ plan: 'Weekly Plan', price: 12.99, minQty: 1, startDate: '2026-01-01', endDate: '2026-12-31' },
-		{ plan: 'Monthly Plan', price: 45.00, minQty: 4, startDate: '2026-01-01', endDate: '2026-12-31' },
-	],
-	2: [
-		{ plan: 'Weekly Plan', price: 35.00, minQty: 1, startDate: '2026-01-01', endDate: '2026-12-31' },
-		{ plan: 'Bi-Weekly Plan', price: 65.00, minQty: 2, startDate: '2026-01-01', endDate: '2026-12-31' },
-	],
-	4: [
-		{ plan: 'Monthly Plan', price: 24.99, minQty: 1, startDate: '2026-01-01', endDate: '2026-12-31' },
-		{ plan: 'Quarterly Plan', price: 69.99, minQty: 3, startDate: '2026-01-01', endDate: '2026-12-31' },
-	],
-	5: [
-		{ plan: 'Weekly Plan', price: 45.00, minQty: 1, startDate: '2026-01-01', endDate: '2026-12-31' },
-	],
-};
+if (isLoggedIn && isAdmin && id) {
+	try {
+		// Fetch product with plans and variants
+		const response = await fetch(`http://localhost:3000/products/${id}`);
+		if (response.ok) {
+			const data = await response.json();
+			product = {
+				id: data.id,
+				name: data.productName,
+				type: data.productType || 'Service',
+				salesPrice: data.salesPrice || 0,
+				costPrice: data.costPrice || 0,
+				tax: data.tax || 0
+			};
+			
+			// Transform variants
+			variants = (data.variants || []).map((v: any) => ({
+				id: v.id,
+				attribute: v.attribute,
+				value: v.value,
+				extraPrice: v.extraPrice || 0
+			}));
+			
+			// Transform plans to recurring prices
+			recurringPrices = (data.plans || []).map((p: any) => ({
+				id: p.id,
+				plan: p.planName,
+				price: p.price || 0,
+				minQty: p.minQuantity || 1,
+				billingPeriod: p.billingPeriod
+			}));
+		} else if (response.status === 404) {
+			product = null;
+		} else {
+			error = 'Failed to load product';
+		}
 
-// Mock variants for products
-const mockVariants: Record<number, Array<{ attribute: string; value: string; extraPrice: number }>> = {
-	1: [
-		{ attribute: 'Size', value: 'Half Liter', extraPrice: 0 },
-		{ attribute: 'Size', value: '1 Liter', extraPrice: 3.00 },
-		{ attribute: 'Size', value: '2 Liter', extraPrice: 5.50 },
-		{ attribute: 'Type', value: 'Full Cream', extraPrice: 0 },
-		{ attribute: 'Type', value: 'Skimmed', extraPrice: 0.50 },
-	],
-	2: [
-		{ attribute: 'Size', value: 'Small (5 items)', extraPrice: 0 },
-		{ attribute: 'Size', value: 'Medium (10 items)', extraPrice: 15.00 },
-		{ attribute: 'Size', value: 'Large (15 items)', extraPrice: 28.00 },
-	],
-	3: [
-		{ attribute: 'Type', value: 'White Bread', extraPrice: 0 },
-		{ attribute: 'Type', value: 'Whole Wheat', extraPrice: 2.00 },
-		{ attribute: 'Type', value: 'Multigrain', extraPrice: 3.50 },
-	],
-	4: [
-		{ attribute: 'Roast', value: 'Light', extraPrice: 0 },
-		{ attribute: 'Roast', value: 'Medium', extraPrice: 0 },
-		{ attribute: 'Roast', value: 'Dark', extraPrice: 1.50 },
-		{ attribute: 'Grind', value: 'Whole Bean', extraPrice: 0 },
-		{ attribute: 'Grind', value: 'Ground', extraPrice: 0 },
-	],
-};
-
-// Find the product
-const productId = parseInt(id ?? '0');
-const product = mockProducts.find(p => p.id === productId);
-const recurringPrices = mockRecurringPrices[productId] ?? [];
-const variants = mockVariants[productId] ?? [];
+		// Fetch all available recurring plans
+		const plansResponse = await fetch('http://localhost:3000/recurring-plans');
+		if (plansResponse.ok) {
+			availablePlans = await plansResponse.json();
+		}
+	} catch (e) {
+		error = 'Unable to connect to the server';
+		console.error('Product fetch error:', e);
+	}
+}
 ---
 
 <AdminLayout title={product ? `TinkerTrack • ${product.name}` : 'TinkerTrack • Product Not Found'} isLoggedIn={isLoggedIn} activeTab="Products">
@@ -103,7 +96,7 @@ const variants = mockVariants[productId] ?? [];
 				</div>
 			</div>
 		) : (
-			<div class="p-6 lg:p-8">
+			<div class="p-6 lg:p-8" x-data="productPage()">
 				<AdminPageHeader eyebrow="Product details" title={product.name}>
 					<Fragment slot="lead">
 						<a href="/admin/products" class="btn btn-ghost btn-xs">
@@ -225,29 +218,26 @@ const variants = mockVariants[productId] ?? [];
 										<tr class="text-xs uppercase tracking-widest text-base-content/50 border-b border-base-300/60">
 											<th class="font-medium">Recurring Plan</th>
 											<th class="font-medium">Price</th>
-											<th class="font-medium">Min Qty</th>
-											<th class="font-medium">Start Date</th>
-											<th class="font-medium">End Date</th>
+											<th class="font-medium">Billing Period</th>
 											<th class="w-20"></th>
 										</tr>
 									</thead>
 									<tbody>
-										{recurringPrices.length > 0 ? (
-											recurringPrices.map((price) => (
+										<template x-if="recurringPrices.length > 0">
+											<template x-for="price in recurringPrices" :key="price.id">
 												<tr class="hover:bg-base-200/40 transition-colors border-b border-base-300/40">
-													<td class="font-medium">{price.plan}</td>
-													<td>${price.price.toFixed(2)}</td>
-													<td>{price.minQty}</td>
-													<td>{price.startDate}</td>
-													<td>{price.endDate}</td>
+													<td class="font-medium" x-text="price.plan"></td>
+													<td x-text="'$' + price.price.toFixed(2)"></td>
+													<td><span class="badge badge-sm badge-ghost capitalize" x-text="price.billingPeriod"></span></td>
 													<td>
-														<button class="btn btn-ghost btn-xs text-error">Remove</button>
+														<button class="btn btn-ghost btn-xs text-error" @click="removePriceTier(price.id)">Remove</button>
 													</td>
 												</tr>
-											))
-										) : (
+											</template>
+										</template>
+										<template x-if="recurringPrices.length === 0">
 											<tr>
-												<td colspan="6" class="text-center py-8 text-base-content/50">
+												<td colspan="4" class="text-center py-8 text-base-content/50">
 													<div class="flex flex-col items-center gap-2">
 														<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
 															<path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -256,13 +246,13 @@ const variants = mockVariants[productId] ?? [];
 													</div>
 												</td>
 											</tr>
-										)}
+										</template>
 									</tbody>
 								</table>
 							</div>
 							<div class="px-5 py-3 border-t border-base-300/60 bg-base-100/40 flex items-center justify-between">
-								<span class="text-xs text-base-content/50">{recurringPrices.length} price tiers</span>
-								<button class="btn btn-ghost btn-sm text-primary">
+								<span class="text-xs text-base-content/50" x-text="recurringPrices.length + ' price tiers'"></span>
+								<button class="btn btn-ghost btn-sm text-primary" @click="openAddPlanModal()">
 									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 										<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
 									</svg>
@@ -284,18 +274,19 @@ const variants = mockVariants[productId] ?? [];
 										</tr>
 									</thead>
 									<tbody>
-										{variants.length > 0 ? (
-											variants.map((variant) => (
+										<template x-if="variants.length > 0">
+											<template x-for="variant in variants" :key="variant.id">
 												<tr class="hover:bg-base-200/40 transition-colors border-b border-base-300/40">
-													<td class="font-medium">{variant.attribute}</td>
-													<td>{variant.value}</td>
-													<td>{variant.extraPrice > 0 ? `+$${variant.extraPrice.toFixed(2)}` : '—'}</td>
+													<td class="font-medium" x-text="variant.attribute"></td>
+													<td x-text="variant.value"></td>
+													<td x-text="variant.extraPrice > 0 ? '+$' + variant.extraPrice.toFixed(2) : '—'"></td>
 													<td>
-														<button class="btn btn-ghost btn-xs text-error">Remove</button>
+														<button class="btn btn-ghost btn-xs text-error" @click="removeVariant(variant.id)">Remove</button>
 													</td>
 												</tr>
-											))
-										) : (
+											</template>
+										</template>
+										<template x-if="variants.length === 0">
 											<tr>
 												<td colspan="4" class="text-center py-8 text-base-content/50">
 													<div class="flex flex-col items-center gap-2">
@@ -306,13 +297,13 @@ const variants = mockVariants[productId] ?? [];
 													</div>
 												</td>
 											</tr>
-										)}
+										</template>
 									</tbody>
 								</table>
 							</div>
 							<div class="px-5 py-3 border-t border-base-300/60 bg-base-100/40 flex items-center justify-between">
-								<span class="text-xs text-base-content/50">{variants.length} variants</span>
-								<button class="btn btn-ghost btn-sm text-primary">
+								<span class="text-xs text-base-content/50" x-text="variants.length + ' variants'"></span>
+								<button class="btn btn-ghost btn-sm text-primary" @click="openAddVariantModal()">
 									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 										<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
 									</svg>
@@ -336,10 +327,295 @@ const variants = mockVariants[productId] ?? [];
 						</div>
 					</div>
 				</div>
+
+				<!-- Add Price Tier Modal -->
+				<dialog id="addPlanModal" class="modal">
+					<div class="modal-box">
+						<form method="dialog">
+							<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+						</form>
+						<h3 class="font-display text-lg font-semibold mb-4">Add Price Tier</h3>
+						<p class="text-sm text-base-content/60 mb-4">Select a recurring plan to add to this product.</p>
+						
+						<template x-if="getAvailablePlansForAdd().length > 0">
+							<div class="form-control">
+								<label class="label">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Recurring Plan</span>
+								</label>
+								<select class="select select-bordered w-full" x-model="selectedPlanId">
+									<option value="">Select a plan...</option>
+									<template x-for="plan in getAvailablePlansForAdd()" :key="plan.id">
+										<option :value="plan.id" x-text="plan.planName + ' - $' + plan.price.toFixed(2) + '/' + plan.billingPeriod"></option>
+									</template>
+								</select>
+							</div>
+						</template>
+						<template x-if="getAvailablePlansForAdd().length === 0">
+							<div class="alert alert-warning">
+								<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+								<div>
+									<span class="font-medium">No plans available</span>
+									<p class="text-xs">All plans are already assigned or no plans exist. Create new plans in Configuration.</p>
+								</div>
+							</div>
+						</template>
+
+						<div class="modal-action">
+							<form method="dialog">
+								<button class="btn btn-ghost">Cancel</button>
+							</form>
+							<button 
+								class="btn btn-primary" 
+								:disabled="!selectedPlanId || loading"
+								@click="addPriceTier()"
+							>
+								<span x-show="loading" class="loading loading-spinner loading-sm"></span>
+								Add Plan
+							</button>
+						</div>
+					</div>
+					<form method="dialog" class="modal-backdrop">
+						<button>close</button>
+					</form>
+				</dialog>
+
+				<!-- Add Variant Modal -->
+				<dialog id="addVariantModal" class="modal">
+					<div class="modal-box">
+						<form method="dialog">
+							<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+						</form>
+						<h3 class="font-display text-lg font-semibold mb-4">Add Variant</h3>
+						<p class="text-sm text-base-content/60 mb-4">Add a new variant attribute for this product.</p>
+						
+						<div class="space-y-4">
+							<div class="form-control">
+								<label class="label">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Attribute</span>
+								</label>
+								<input 
+									type="text" 
+									class="input input-bordered w-full" 
+									placeholder="e.g., Size, Color, Material"
+									x-model="newVariant.attribute"
+								/>
+							</div>
+							<div class="form-control">
+								<label class="label">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Value</span>
+								</label>
+								<input 
+									type="text" 
+									class="input input-bordered w-full" 
+									placeholder="e.g., Large, Red, Cotton"
+									x-model="newVariant.value"
+								/>
+							</div>
+							<div class="form-control">
+								<label class="label">
+									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Extra Price</span>
+								</label>
+								<div class="input input-bordered flex items-center">
+									<span class="text-base-content/50">$</span>
+									<input 
+										type="number" 
+										step="0.01"
+										class="grow bg-transparent border-0 focus:outline-none pl-1"
+										placeholder="0.00"
+										x-model="newVariant.extraPrice"
+									/>
+								</div>
+								<label class="label">
+									<span class="label-text-alt text-base-content/50">Additional cost for this variant (optional)</span>
+								</label>
+							</div>
+						</div>
+
+						<template x-if="variantError">
+							<div class="alert alert-error mt-4">
+								<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+								<span x-text="variantError"></span>
+							</div>
+						</template>
+
+						<div class="modal-action">
+							<form method="dialog">
+								<button class="btn btn-ghost" @click="resetVariantForm()">Cancel</button>
+							</form>
+							<button 
+								class="btn btn-primary" 
+								:disabled="!newVariant.attribute || !newVariant.value || loading"
+								@click="addVariant()"
+							>
+								<span x-show="loading" class="loading loading-spinner loading-sm"></span>
+								Add Variant
+							</button>
+						</div>
+					</div>
+					<form method="dialog" class="modal-backdrop">
+						<button>close</button>
+					</form>
+				</dialog>
 			</div>
 		)
 	}
 </AdminLayout>
+
+<script define:vars={{ id, recurringPrices, variants, availablePlans }}>
+	window.productId = id;
+	window.initialRecurringPrices = recurringPrices;
+	window.initialVariants = variants;
+	window.initialAvailablePlans = availablePlans;
+
+	// Define productPage before Alpine loads
+	document.addEventListener('alpine:init', () => {
+		Alpine.data('productPage', () => ({
+			productId: window.productId,
+			recurringPrices: window.initialRecurringPrices || [],
+			variants: window.initialVariants || [],
+			availablePlans: window.initialAvailablePlans || [],
+			selectedPlanId: '',
+			newVariant: {
+				attribute: '',
+				value: '',
+				extraPrice: 0
+			},
+			loading: false,
+			variantError: '',
+
+			getAvailablePlansForAdd() {
+				const assignedPlanIds = this.recurringPrices.map(p => p.id);
+				return this.availablePlans.filter(p => !assignedPlanIds.includes(p.id));
+			},
+
+			openAddPlanModal() {
+				this.selectedPlanId = '';
+				const modal = document.getElementById('addPlanModal');
+				modal?.showModal();
+			},
+
+			openAddVariantModal() {
+				this.resetVariantForm();
+				const modal = document.getElementById('addVariantModal');
+				modal?.showModal();
+			},
+
+			resetVariantForm() {
+				this.newVariant = { attribute: '', value: '', extraPrice: 0 };
+				this.variantError = '';
+			},
+
+			async addPriceTier() {
+				if (!this.selectedPlanId) return;
+				
+				this.loading = true;
+				try {
+					const response = await fetch(`http://localhost:3000/products/${this.productId}/plans`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ planId: parseInt(this.selectedPlanId) })
+					});
+
+					if (response.ok) {
+						const data = await response.json();
+						this.recurringPrices.push({
+							id: data.plan.id,
+							plan: data.plan.planName,
+							price: data.plan.price,
+							billingPeriod: data.plan.billingPeriod
+						});
+						
+						const modal = document.getElementById('addPlanModal');
+						modal?.close();
+					} else {
+						const err = await response.json();
+						alert(err.error || 'Failed to add plan');
+					}
+				} catch (e) {
+					alert('Failed to connect to server');
+				}
+				this.loading = false;
+			},
+
+			async removePriceTier(planId) {
+				if (!confirm('Remove this price tier from the product?')) return;
+				
+				try {
+					const response = await fetch(`http://localhost:3000/products/${this.productId}/plans/${planId}`, {
+						method: 'DELETE'
+					});
+
+					if (response.ok) {
+						this.recurringPrices = this.recurringPrices.filter(p => p.id !== planId);
+					} else {
+						const err = await response.json();
+						alert(err.error || 'Failed to remove plan');
+					}
+				} catch (e) {
+					alert('Failed to connect to server');
+				}
+			},
+
+			async addVariant() {
+				if (!this.newVariant.attribute || !this.newVariant.value) return;
+				
+				this.loading = true;
+				this.variantError = '';
+				
+				try {
+					const response = await fetch(`http://localhost:3000/products/${this.productId}/variants`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							attribute: this.newVariant.attribute,
+							value: this.newVariant.value,
+							extraPrice: parseFloat(this.newVariant.extraPrice) || 0
+						})
+					});
+
+					if (response.ok) {
+						const data = await response.json();
+						this.variants.push({
+							id: data.id,
+							attribute: data.attribute,
+							value: data.value,
+							extraPrice: data.extraPrice || 0
+						});
+						
+						const modal = document.getElementById('addVariantModal');
+						modal?.close();
+						this.resetVariantForm();
+					} else {
+						const err = await response.json();
+						this.variantError = err.error || 'Failed to add variant';
+					}
+				} catch (e) {
+					this.variantError = 'Failed to connect to server';
+				}
+				this.loading = false;
+			},
+
+			async removeVariant(variantId) {
+				if (!confirm('Remove this variant from the product?')) return;
+				
+				try {
+					const response = await fetch(`http://localhost:3000/products/${this.productId}/variants/${variantId}`, {
+						method: 'DELETE'
+					});
+
+					if (response.ok) {
+						this.variants = this.variants.filter(v => v.id !== variantId);
+					} else {
+						const err = await response.json();
+						alert(err.error || 'Failed to remove variant');
+					}
+				} catch (e) {
+					alert('Failed to connect to server');
+				}
+			}
+		}));
+	});
+</script>
 
 <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 <style>

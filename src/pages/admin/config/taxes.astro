@@ -7,6 +7,25 @@ import AdminPageHeader from '../../../components/admin/AdminPageHeader.astro';
 const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
 const isAdmin = Boolean(session.isAdmin);
+
+// Fetch taxes from API
+let taxes: any[] = [];
+let error: string | null = null;
+
+if (isLoggedIn && isAdmin) {
+	try {
+		const response = await fetch('http://localhost:3000/product-taxes');
+		if (response.ok) {
+			taxes = await response.json();
+		} else {
+			const data = await response.json();
+			error = data.error || 'Failed to load taxes';
+		}
+	} catch (e) {
+		error = 'Unable to connect to the server';
+		console.error('Taxes fetch error:', e);
+	}
+}
 ---
 
 <AdminLayout title="TinkerTrack • Taxes" isLoggedIn={isLoggedIn} activeSubTab="Taxes">
@@ -39,23 +58,58 @@ const isAdmin = Boolean(session.isAdmin);
 					</Fragment>
 				</AdminPageHeader>
 
-				<!-- Placeholder content -->
 				<div class="max-w-2xl rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
-					<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40">
-						<h3 class="font-display text-lg">Tax Rates</h3>
-						<p class="text-xs text-base-content/60 mt-0.5">Configure tax rates and rules</p>
+					<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40 flex items-center justify-between">
+						<div>
+							<h3 class="font-display text-lg">Tax Rates</h3>
+							<p class="text-xs text-base-content/60 mt-0.5">Configure tax rates and rules</p>
+						</div>
+						<span class="text-xs text-base-content/50">{taxes.length} taxes</span>
 					</div>
-					<div class="p-12 text-center">
-						<div class="flex flex-col items-center gap-4 text-base-content/50">
-							<svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
-								<path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-							</svg>
-							<div>
-								<p class="font-medium text-base-content/70">Coming soon</p>
-								<p class="text-sm mt-1">Tax configuration will be available here</p>
+					{taxes.length > 0 ? (
+						<div class="overflow-x-auto">
+							<table class="table">
+								<thead>
+									<tr class="text-xs uppercase tracking-widest text-base-content/50 border-b border-base-300/60">
+										<th class="font-medium">Tax Name</th>
+										<th class="font-medium">Type</th>
+										<th class="font-medium">Rate</th>
+										<th class="font-medium">Status</th>
+										<th class="w-20"></th>
+									</tr>
+								</thead>
+								<tbody>
+									{taxes.map((tax: any) => (
+										<tr class="hover:bg-base-200/40 transition-colors border-b border-base-300/40">
+											<td class="font-medium">{tax.taxName}</td>
+											<td class="text-base-content/70">{tax.taxType}</td>
+											<td>{tax.taxType === 'PERCENTAGE' ? `${tax.rate}%` : `$${tax.rate}`}</td>
+											<td>
+												<span class={`badge badge-sm ${tax.isActive ? 'badge-success' : 'badge-ghost'}`}>
+													{tax.isActive ? 'Active' : 'Inactive'}
+												</span>
+											</td>
+											<td>
+												<button class="btn btn-ghost btn-xs">Edit</button>
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</div>
+					) : (
+						<div class="p-12 text-center">
+							<div class="flex flex-col items-center gap-4 text-base-content/50">
+								<svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+								</svg>
+								<div>
+									<p class="font-medium text-base-content/70">{error || 'No tax rates configured'}</p>
+									<p class="text-sm mt-1">Click "New Tax Rate" to add your first tax</p>
+								</div>
 							</div>
 						</div>
-					</div>
+					)}
 				</div>
 			</div>
 		)

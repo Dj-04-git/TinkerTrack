@@ -9,14 +9,30 @@ const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
 const isAdmin = Boolean(session.isAdmin);
 
-// Mock product data (server-side) - same as detail page
-const products = [
-	{ id: 1, name: 'Fresh Milk Delivery', type: 'Service', salesPrice: 12.99, costPrice: 8.50 },
-	{ id: 2, name: 'Organic Vegetable Box', type: 'Goods', salesPrice: 35.00, costPrice: 22.00 },
-	{ id: 3, name: 'Weekly Bread Basket', type: 'Goods', salesPrice: 18.50, costPrice: 11.00 },
-	{ id: 4, name: 'Coffee Bean Subscription', type: 'Goods', salesPrice: 24.99, costPrice: 15.00 },
-	{ id: 5, name: 'Laundry Service', type: 'Service', salesPrice: 45.00, costPrice: 25.00 },
-];
+// Fetch products from API
+let products: any[] = [];
+let error: string | null = null;
+
+if (isLoggedIn && isAdmin) {
+	try {
+		const response = await fetch('http://localhost:3000/products');
+		if (response.ok) {
+			const data = await response.json();
+			products = data.map((p: any) => ({
+				id: p.id,
+				name: p.productName,
+				type: p.productType || 'Service',
+				salesPrice: p.salesPrice || 0,
+				costPrice: p.costPrice || 0
+			}));
+		} else {
+			error = 'Failed to load products';
+		}
+	} catch (e) {
+		error = 'Unable to connect to the server';
+		console.error('Product fetch error:', e);
+	}
+}
 ---
 
 <AdminLayout title="TinkerTrack • Products" isLoggedIn={isLoggedIn} activeTab="Products">
@@ -48,6 +64,15 @@ const products = [
 						</a>
 					</Fragment>
 				</AdminPageHeader>
+
+				{error && (
+					<div class="alert alert-warning mb-6 max-w-4xl">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+						</svg>
+						<span>{error}</span>
+					</div>
+				)}
 
 				<!-- Product list -->
 				<div class="max-w-4xl">

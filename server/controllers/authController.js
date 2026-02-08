@@ -233,6 +233,7 @@ exports.login = (req, res) => {
       { id: user.id, email: user.email },
       config.JWT_SECRET,
       { expiresIn: "1h" }
+      
     );
 
     res.json({ message: "Login successful", token, userId: user.id });

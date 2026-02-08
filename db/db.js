@@ -409,7 +409,7 @@ db.serialize(() => {
   db.run("CREATE INDEX IF NOT EXISTS idx_quotation_template_items_templateId ON quotation_template_items(templateId)");
 
   // ========================================
-  // CART (normalized - no denormalized columns)
+  // CART
   // ========================================
   db.run(`
     CREATE TABLE IF NOT EXISTS cart (

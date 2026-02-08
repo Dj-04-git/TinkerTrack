@@ -8,28 +8,48 @@ const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
 const isAdmin = Boolean(session.isAdmin);
 
-const products = [
-	'Fresh Milk Delivery',
-	'Organic Vegetable Box',
-	'Weekly Bread Basket',
-	'Coffee Bean Subscription',
-	'Laundry Service'
-];
+// Fetch products and discounts from API
+let products: any[] = [];
+let discounts: any[] = [];
+let error: string | null = null;
 
+if (isLoggedIn && isAdmin) {
+	try {
+		// Fetch products for dropdown
+		const productsResponse = await fetch('http://localhost:3000/products');
+		if (productsResponse.ok) {
+			const data = await productsResponse.json();
+			products = data.map((p: any) => ({ id: p.id, name: p.productName }));
+		}
+
+		// Fetch existing discounts
+		const discountsResponse = await fetch('http://localhost:3000/discounts');
+		if (discountsResponse.ok) {
+			discounts = await discountsResponse.json();
+		} else {
+			error = 'Failed to load discounts';
+		}
+	} catch (e) {
+		error = 'Unable to connect to the server';
+		console.error('Discount fetch error:', e);
+	}
+}
+
+// Default discount for form
 const discount = {
-	name: 'New Year Saver',
-	type: 'percentage',
-	amount: 10,
-	minPurchase: 50,
-	minQty: 2,
-	applyScope: 'all',
+	name: '',
+	type: 'PERCENTAGE',
+	amount: 0,
+	minPurchase: 0,
+	minQty: 1,
+	applyScope: 'ALL',
 	limitUsage: false,
 	usageLimit: 100,
-	startDate: '2026-02-01',
-	endDate: '2026-03-31'
+	startDate: '',
+	endDate: ''
 };
 
-const selectedProducts = ['Fresh Milk Delivery', 'Organic Vegetable Box'];
+const selectedProducts: any[] = [];
 ---
 
 <AdminLayout title="TinkerTrack • Discounts" isLoggedIn={isLoggedIn} activeSubTab="Discounts">

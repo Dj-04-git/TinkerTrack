@@ -1,0 +1,355 @@
+---
+export const prerender = false;
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import AccessGate from '../../components/AccessGate.astro';
+import AdminPageHeader from '../../components/admin/AdminPageHeader.astro';
+
+const session = Astro.locals?.session ?? {};
+const isLoggedIn = Boolean(session.isLoggedIn);
+const isAdmin = Boolean(session.isAdmin);
+
+// Fetch users from API
+let users: any[] = [];
+let userStats: any = { totalUsers: 0, verifiedUsers: 0, adminUsers: 0, newUsersLast30Days: 0 };
+let error: string | null = null;
+
+if (isLoggedIn && isAdmin) {
+	try {
+		// Fetch all users
+		const usersResponse = await fetch('http://localhost:3000/users');
+		if (usersResponse.ok) {
+			users = await usersResponse.json();
+		}
+
+		// Fetch user stats
+		const statsResponse = await fetch('http://localhost:3000/users/stats');
+		if (statsResponse.ok) {
+			userStats = await statsResponse.json();
+		}
+	} catch (e) {
+		error = 'Unable to connect to the server';
+		console.error('Users fetch error:', e);
+	}
+}
+---
+
+<AdminLayout title="TinkerTrack • Users & Contacts" isLoggedIn={isLoggedIn} activeTab="Users">
+	{
+		!isLoggedIn ? (
+			<AccessGate
+				badge="Login required"
+				title="Sign in to manage users"
+				description="Admin pages are available after you sign in."
+			/>
+		) : !isAdmin ? (
+			<AccessGate
+				badge="Admin only"
+				title="Admin access required"
+				description="Only admins can manage users and contacts."
+				linkHref="/profile"
+				linkText="Go to profile"
+				hint="Request admin access from your workspace owner."
+			/>
+		) : (
+			<div class="p-6 lg:p-8" x-data="usersPage()">
+				<AdminPageHeader eyebrow="Platform management" title="Users & Contacts">
+					<Fragment slot="actions">
+						<div class="flex items-center gap-3">
+							<div class="form-control">
+								<input
+									type="text"
+									placeholder="Search users..."
+									class="input input-bordered input-sm bg-base-100/80 w-48"
+									x-model="searchQuery"
+									@input="filterUsers()"
+								/>
+							</div>
+							<select class="select select-bordered select-sm bg-base-100/80" x-model="filterStatus" @change="filterUsers()">
+								<option value="all">All Users</option>
+								<option value="verified">Verified</option>
+								<option value="unverified">Unverified</option>
+								<option value="admin">Admins</option>
+							</select>
+						</div>
+					</Fragment>
+				</AdminPageHeader>
+
+				{error && (
+					<div class="alert alert-warning mb-6">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+						</svg>
+						<span>{error}</span>
+					</div>
+				)}
+
+				<div class="max-w-6xl grid gap-6">
+					<!-- Stats Cards -->
+					<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+						<div class="rounded-2xl border border-base-300/70 bg-base-100/60 p-5">
+							<p class="text-xs uppercase tracking-widest text-base-content/50 font-medium">Total Users</p>
+							<p class="font-display text-3xl font-semibold mt-2">{userStats.totalUsers}</p>
+						</div>
+						<div class="rounded-2xl border border-base-300/70 bg-base-100/60 p-5">
+							<p class="text-xs uppercase tracking-widest text-base-content/50 font-medium">Verified Users</p>
+							<p class="font-display text-3xl font-semibold mt-2 text-success">{userStats.verifiedUsers}</p>
+						</div>
+						<div class="rounded-2xl border border-base-300/70 bg-base-100/60 p-5">
+							<p class="text-xs uppercase tracking-widest text-base-content/50 font-medium">Admin Users</p>
+							<p class="font-display text-3xl font-semibold mt-2 text-primary">{userStats.adminUsers}</p>
+						</div>
+						<div class="rounded-2xl border border-base-300/70 bg-base-100/60 p-5">
+							<p class="text-xs uppercase tracking-widest text-base-content/50 font-medium">New (30 days)</p>
+							<p class="font-display text-3xl font-semibold mt-2 text-info">{userStats.newUsersLast30Days}</p>
+						</div>
+					</div>
+
+					<!-- Users Table -->
+					<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+						<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40 flex items-center justify-between">
+							<div>
+								<h3 class="font-display text-lg">All Users</h3>
+								<p class="text-xs text-base-content/60 mt-0.5">Platform users and contacts</p>
+							</div>
+							<span class="text-xs text-base-content/50" x-text="`${filteredUsers.length} users`"></span>
+						</div>
+						<div class="overflow-x-auto">
+							<table class="table">
+								<thead>
+									<tr class="text-xs uppercase tracking-widest text-base-content/50 border-b border-base-300/60">
+										<th class="font-medium">User</th>
+										<th class="font-medium">Contact</th>
+										<th class="font-medium">Location</th>
+										<th class="font-medium">Status</th>
+										<th class="font-medium">Joined</th>
+										<th class="w-20"></th>
+									</tr>
+								</thead>
+								<tbody>
+									<template x-for="user in filteredUsers" :key="user.id">
+										<tr class="hover:bg-base-200/40 transition-colors border-b border-base-300/40 cursor-pointer" @click="viewUser(user)">
+											<td>
+												<div class="flex items-center gap-3">
+													<div class="avatar placeholder">
+														<div class="w-10 h-10 rounded-full bg-primary/10 text-primary">
+															<span class="text-sm font-medium" x-text="user.name?.charAt(0)?.toUpperCase() || '?'"></span>
+														</div>
+													</div>
+													<div>
+														<p class="font-medium" x-text="user.name"></p>
+														<p class="text-xs text-base-content/50" x-text="user.email"></p>
+													</div>
+												</div>
+											</td>
+											<td>
+												<span class="text-sm" x-text="user.phone || '—'"></span>
+											</td>
+											<td>
+												<span class="text-sm text-base-content/70" x-text="user.location || '—'"></span>
+											</td>
+											<td>
+												<div class="flex gap-1">
+													<span class="badge badge-sm" :class="user.isVerified ? 'badge-success' : 'badge-ghost'" x-text="user.isVerified ? 'Verified' : 'Unverified'"></span>
+													<span class="badge badge-sm badge-primary" x-show="user.isAdmin">Admin</span>
+												</div>
+											</td>
+											<td>
+												<span class="text-sm text-base-content/50" x-text="new Date(user.createdAt).toLocaleDateString()"></span>
+											</td>
+											<td>
+												<button class="btn btn-ghost btn-xs" @click.stop="viewUser(user)">View</button>
+											</td>
+										</tr>
+									</template>
+									<template x-if="filteredUsers.length === 0">
+										<tr>
+											<td colspan="6" class="text-center py-12 text-base-content/50">
+												<svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+													<path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+												</svg>
+												<p>No users found</p>
+											</td>
+										</tr>
+									</template>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+
+				<!-- User Detail Modal -->
+				<dialog id="userDetailModal" class="modal">
+					<div class="modal-box max-w-2xl">
+						<form method="dialog">
+							<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+						</form>
+						<template x-if="selectedUser">
+							<div>
+								<div class="flex items-center gap-4 mb-6">
+									<div class="avatar placeholder">
+										<div class="w-16 h-16 rounded-full bg-primary/10 text-primary">
+											<span class="text-2xl font-semibold" x-text="selectedUser.name?.charAt(0)?.toUpperCase() || '?'"></span>
+										</div>
+									</div>
+									<div>
+										<h3 class="font-display text-xl font-semibold" x-text="selectedUser.name"></h3>
+										<p class="text-base-content/60" x-text="selectedUser.email"></p>
+									</div>
+								</div>
+
+								<div class="grid gap-4 sm:grid-cols-2 mb-6">
+									<div class="bg-base-200/50 rounded-xl p-4">
+										<p class="text-xs uppercase tracking-widest text-base-content/50 mb-1">Phone</p>
+										<p class="font-medium" x-text="selectedUser.phone || 'Not provided'"></p>
+									</div>
+									<div class="bg-base-200/50 rounded-xl p-4">
+										<p class="text-xs uppercase tracking-widest text-base-content/50 mb-1">Location</p>
+										<p class="font-medium" x-text="selectedUser.location || 'Not provided'"></p>
+									</div>
+									<div class="bg-base-200/50 rounded-xl p-4">
+										<p class="text-xs uppercase tracking-widest text-base-content/50 mb-1">Status</p>
+										<div class="flex gap-2 mt-1">
+											<span class="badge" :class="selectedUser.isVerified ? 'badge-success' : 'badge-ghost'" x-text="selectedUser.isVerified ? 'Verified' : 'Unverified'"></span>
+											<span class="badge badge-primary" x-show="selectedUser.isAdmin">Admin</span>
+										</div>
+									</div>
+									<div class="bg-base-200/50 rounded-xl p-4">
+										<p class="text-xs uppercase tracking-widest text-base-content/50 mb-1">Joined</p>
+										<p class="font-medium" x-text="new Date(selectedUser.createdAt).toLocaleDateString()"></p>
+									</div>
+								</div>
+
+								<template x-if="selectedUser.about">
+									<div class="bg-base-200/50 rounded-xl p-4 mb-6">
+										<p class="text-xs uppercase tracking-widest text-base-content/50 mb-2">About</p>
+										<p class="text-sm" x-text="selectedUser.about"></p>
+									</div>
+								</template>
+
+								<!-- User's Subscriptions -->
+								<template x-if="selectedUser.subscriptions && selectedUser.subscriptions.length > 0">
+									<div class="mb-6">
+										<h4 class="font-display text-lg mb-3">Subscriptions</h4>
+										<div class="overflow-x-auto">
+											<table class="table table-sm">
+												<thead>
+													<tr class="text-xs uppercase tracking-widest text-base-content/50">
+														<th>Number</th>
+														<th>Status</th>
+														<th>Total</th>
+														<th>Start Date</th>
+													</tr>
+												</thead>
+												<tbody>
+													<template x-for="sub in selectedUser.subscriptions" :key="sub.id">
+														<tr class="border-b border-base-300/40">
+															<td class="font-medium" x-text="sub.subscriptionNumber"></td>
+															<td><span class="badge badge-sm badge-ghost" x-text="sub.status"></span></td>
+															<td x-text="'$' + (sub.total || 0).toFixed(2)"></td>
+															<td x-text="sub.startDate ? new Date(sub.startDate).toLocaleDateString() : '—'"></td>
+														</tr>
+													</template>
+												</tbody>
+											</table>
+										</div>
+									</div>
+								</template>
+
+								<!-- User's Payments -->
+								<template x-if="selectedUser.payments && selectedUser.payments.length > 0">
+									<div>
+										<h4 class="font-display text-lg mb-3">Recent Payments</h4>
+										<div class="overflow-x-auto">
+											<table class="table table-sm">
+												<thead>
+													<tr class="text-xs uppercase tracking-widest text-base-content/50">
+														<th>Payment #</th>
+														<th>Amount</th>
+														<th>Method</th>
+														<th>Status</th>
+													</tr>
+												</thead>
+												<tbody>
+													<template x-for="payment in selectedUser.payments" :key="payment.id">
+														<tr class="border-b border-base-300/40">
+															<td class="font-medium" x-text="payment.paymentNumber"></td>
+															<td x-text="'$' + (payment.amount || 0).toFixed(2)"></td>
+															<td x-text="payment.paymentMethod"></td>
+															<td><span class="badge badge-sm" :class="payment.status === 'COMPLETED' ? 'badge-success' : 'badge-ghost'" x-text="payment.status"></span></td>
+														</tr>
+													</template>
+												</tbody>
+											</table>
+										</div>
+									</div>
+								</template>
+							</div>
+						</template>
+					</div>
+					<form method="dialog" class="modal-backdrop">
+						<button>close</button>
+					</form>
+				</dialog>
+			</div>
+		)
+	}
+</AdminLayout>
+
+<script define:vars={{ users }}>
+	window.usersData = users;
+
+	// Define usersPage before Alpine loads
+	document.addEventListener('alpine:init', () => {
+		Alpine.data('usersPage', () => ({
+			users: window.usersData || [],
+			filteredUsers: window.usersData || [],
+			searchQuery: '',
+			filterStatus: 'all',
+			selectedUser: null,
+
+			filterUsers() {
+				let result = this.users;
+
+				// Apply search filter
+				if (this.searchQuery) {
+					const query = this.searchQuery.toLowerCase();
+					result = result.filter(u =>
+						u.name?.toLowerCase().includes(query) ||
+						u.email?.toLowerCase().includes(query) ||
+						u.phone?.includes(query)
+					);
+				}
+
+				// Apply status filter
+				if (this.filterStatus === 'verified') {
+					result = result.filter(u => u.isVerified);
+				} else if (this.filterStatus === 'unverified') {
+					result = result.filter(u => !u.isVerified);
+				} else if (this.filterStatus === 'admin') {
+					result = result.filter(u => u.isAdmin);
+				}
+
+				this.filteredUsers = result;
+			},
+
+			async viewUser(user) {
+				// Fetch full user details
+				try {
+					const response = await fetch(`http://localhost:3000/users/${user.id}`);
+					if (response.ok) {
+						this.selectedUser = await response.json();
+					} else {
+						this.selectedUser = user;
+					}
+				} catch (e) {
+					this.selectedUser = user;
+				}
+				
+				const modal = document.getElementById('userDetailModal');
+				modal?.showModal();
+			}
+		}));
+	});
+</script>
+
+<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>

@@ -24,6 +24,12 @@ router.delete("/:productId", validateIdParam('productId'), controller.deleteProd
 // Get product plans
 router.get("/:productId/plans", validateIdParam('productId'), controller.getProductPlans);
 
+// Add plan to product
+router.post("/:productId/plans", validateIdParam('productId'), controller.addPlanToProduct);
+
+// Remove plan from product
+router.delete("/:productId/plans/:planId", validateIdParam('productId'), controller.removePlanFromProduct);
+
 // Get product variants
 router.get("/:productId/variants", validateIdParam('productId'), controller.getProductVariants);
 

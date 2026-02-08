@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const controller = require("../controllers/subscriptionController");
-const { validateIdParam } = require("../middleware/validationMiddleware");
+const { validateIdParam, validateIdOrNumberParam } = require("../middleware/validationMiddleware");
 
 // Create subscription
 router.post("/", controller.createSubscription);
@@ -15,8 +15,8 @@ router.get("/count", controller.getSubscriptionCount);
 // Get customers list (for dropdown)
 router.get("/customers", controller.getCustomers);
 
-// Get subscription by ID
-router.get("/:subscriptionId", validateIdParam('subscriptionId'), controller.getSubscriptionById);
+// Get subscription by ID or subscription number (e.g., S-0001)
+router.get("/:subscriptionId", validateIdOrNumberParam('subscriptionId'), controller.getSubscriptionById);
 
 // Update subscription
 router.put("/:subscriptionId", validateIdParam('subscriptionId'), controller.updateSubscription);

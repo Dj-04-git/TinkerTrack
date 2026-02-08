@@ -28,7 +28,48 @@ const isAdmin = Boolean(session.isAdmin);
 				hint="Request admin access from your workspace owner if you need to edit products."
 			/>
 		) : (
-			<div class="p-6 lg:p-8">
+			<div class="p-6 lg:p-8" x-data={`{
+				saving: false,
+				
+				async createProduct() {
+					this.saving = true;
+					try {
+						const form = document.getElementById('productForm');
+						const formData = new FormData(form);
+						
+						const productName = formData.get('productName');
+						if (!productName) {
+							alert('Product name is required');
+							this.saving = false;
+							return;
+						}
+						
+						const response = await fetch('http://localhost:3000/products', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({
+								productName: productName,
+								productType: formData.get('productType') || null,
+								salesPrice: parseFloat(formData.get('salesPrice')) || 0,
+								costPrice: parseFloat(formData.get('costPrice')) || 0,
+								tax: parseFloat(formData.get('tax')) || 0
+							})
+						});
+						
+						if (response.ok) {
+							const data = await response.json();
+							window.location.href = '/admin/products/' + data.id;
+						} else {
+							const data = await response.json();
+							alert(data.error || 'Failed to create product');
+						}
+					} catch (e) {
+						alert('Error creating product');
+					} finally {
+						this.saving = false;
+					}
+				}
+			}`}>
 				<AdminPageHeader eyebrow="Product management" title="New Product">
 					<Fragment slot="lead">
 						<a href="/admin/products" class="btn btn-ghost btn-xs">
@@ -40,17 +81,21 @@ const isAdmin = Boolean(session.isAdmin);
 					</Fragment>
 					<Fragment slot="actions">
 						<a href="/admin/products" class="btn btn-ghost btn-sm">Cancel</a>
-						<button class="btn btn-primary btn-sm">
-							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-								<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-							</svg>
-							Create product
+						<button class="btn btn-primary btn-sm" @click="createProduct()" :disabled="saving">
+							<span x-show="!saving" class="flex items-center gap-2">
+								<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+								</svg>
+								Create product
+							</span>
+							<span x-show="saving" class="loading loading-spinner loading-xs"></span>
 						</button>
 					</Fragment>
 				</AdminPageHeader>
 
 				<!-- Product form -->
 				<div class="max-w-4xl grid gap-6">
+					<form id="productForm">
 					<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
 						<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40">
 							<h3 class="font-display text-lg">Product details</h3>
@@ -60,6 +105,7 @@ const isAdmin = Boolean(session.isAdmin);
 							<ProductForm />
 						</div>
 					</div>
+					</form>
 
 					<!-- Helpful tip -->
 					<div class="rounded-xl border border-info/30 bg-info/5 p-4 flex items-start gap-3">

@@ -14,6 +14,8 @@ const discountRoutes = require("./routes/discountRoutes");
 const productTaxRoutes = require("./routes/productTaxRoutes");
 const cartRoutes = require("./routes/cartRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
+const reportingRoutes = require("./routes/reportingRoutes");
+const userRoutes = require("./routes/userRoutes");
 
 const app = express();
 app.use(
@@ -36,9 +38,12 @@ app.use("/discounts", discountRoutes);
 app.use("/product-taxes", productTaxRoutes);
 app.use("/cart", cartRoutes);
 app.use("/payments", paymentRoutes);
+app.use("/reporting", reportingRoutes);
+app.use("/users", userRoutes);
 
-// Legacy route for backwards compatibility
+// Legacy routes for backwards compatibility
 app.use("/quotation-templates", quotationTemplateRoutes);
+app.use("/recurring-plans", recurringPlanRoutes);
 
 app.listen(3000, () => {
   console.log("Server running on port 3000");

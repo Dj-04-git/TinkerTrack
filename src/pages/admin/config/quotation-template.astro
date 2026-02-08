@@ -8,21 +8,47 @@ const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
 const isAdmin = Boolean(session.isAdmin);
 
-const recurringPlans = ['Weekly Plan', 'Monthly Plan', 'Quarterly Plan', 'Annual Plan'];
+// Fetch data from API
+let recurringPlans: any[] = [];
+let products: any[] = [];
+let quotationTemplates: any[] = [];
+let error: string | null = null;
+
+if (isLoggedIn && isAdmin) {
+	try {
+		// Fetch recurring plans for dropdown
+		const plansResponse = await fetch('http://localhost:3000/recurring-plans');
+		if (plansResponse.ok) {
+			recurringPlans = await plansResponse.json();
+		}
+
+		// Fetch products for dropdown
+		const productsResponse = await fetch('http://localhost:3000/products');
+		if (productsResponse.ok) {
+			products = await productsResponse.json();
+		}
+
+		// Fetch quotation templates
+		const templatesResponse = await fetch('http://localhost:3000/quotation-templates');
+		if (templatesResponse.ok) {
+			quotationTemplates = await templatesResponse.json();
+		}
+	} catch (e) {
+		error = 'Unable to connect to the server';
+		console.error('Quotation template fetch error:', e);
+	}
+}
+
 const template = {
-	name: 'Starter Subscription Quote',
+	name: '',
 	validityDays: 14,
-	recurringPlan: 'Monthly Plan',
+	recurringPlan: '',
 	lastForever: false,
 	endAfterValue: 12,
 	endAfterUnit: 'Month'
 };
 
-const productLines = [
-	{ product: 'Demo product', description: 'Demo product', quantity: 1 },
-	{ product: 'Organic Vegetable Box', description: 'Seasonal produce assortment', quantity: 2 },
-	{ product: 'Fresh Milk Delivery', description: 'Daily delivery (1L)', quantity: 7 }
-];
+const productLines: any[] = [];
 ---
 
 <AdminLayout title="TinkerTrack • Quotation Templates" isLoggedIn={isLoggedIn} activeSubTab="Quotation Template">
@@ -93,8 +119,9 @@ const productLines = [
 								<label class="form-control">
 									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Recurring Plan</span>
 									<select class="select select-bordered bg-base-100/80">
-										{recurringPlans.map((plan) => (
-											<option selected={plan === template.recurringPlan}>{plan}</option>
+										<option value="" disabled selected>Select plan...</option>
+										{recurringPlans.map((plan: any) => (
+											<option value={plan.id}>{plan.name}</option>
 										))}
 									</select>
 								</label>
@@ -180,9 +207,9 @@ const productLines = [
 										<td>
 											<select class="select select-bordered bg-base-100/80 w-full">
 												<option value="" disabled selected>Select product...</option>
-												<option>Demo product</option>
-												<option>Organic Vegetable Box</option>
-												<option>Fresh Milk Delivery</option>
+												{products.map((product: any) => (
+													<option value={product.id}>{product.productName}</option>
+												))}
 											</select>
 										</td>
 										<td>

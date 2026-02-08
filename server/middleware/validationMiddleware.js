@@ -13,6 +13,24 @@ exports.validateIdParam = (paramName) => (req, res, next) => {
 };
 
 /**
+ * Validate that an ID parameter is either a valid positive integer or a formatted identifier (e.g., S-0001)
+ */
+exports.validateIdOrNumberParam = (paramName) => (req, res, next) => {
+  const id = req.params[paramName];
+  if (!id) {
+    return res.status(400).json({ error: `Invalid ${paramName}` });
+  }
+  // Allow numeric IDs or formatted identifiers like S-0001, INV-0001, etc.
+  const isNumeric = !isNaN(parseInt(id)) && parseInt(id) > 0;
+  const isFormatted = /^[A-Z]+-\d+$/i.test(id);
+  
+  if (!isNumeric && !isFormatted) {
+    return res.status(400).json({ error: `Invalid ${paramName}` });
+  }
+  next();
+};
+
+/**
  * Validate required fields in request body
  */
 exports.validateRequired = (fields) => (req, res, next) => {
