@@ -1,4 +1,12 @@
 import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+
+// Load environment variables from .env file
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 export const SESSION_COOKIE_NAME = "tt_session";
 
@@ -39,7 +47,7 @@ export function verifyJwtToken(token) {
 }
 
 function getAdminEmail() {
-	const envValue = (import.meta.env?.ADMIN_EMAIL ?? process.env.ADMIN_EMAIL ?? '').trim();
+	const envValue = (process.env.ADMIN_EMAIL ?? '').trim();
 	return envValue ? envValue.toLowerCase() : '';
 }
 
@@ -60,7 +68,7 @@ export async function resolveSession(cookies) {
         return { isLoggedIn: false };
     }
 
-    const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
+    const adminEmail = getAdminEmail();
     const tokenEmail = String(resolvedPayload?.email ?? '').toLowerCase();
     const isAdmin = Boolean(adminEmail && tokenEmail && tokenEmail === adminEmail);
 

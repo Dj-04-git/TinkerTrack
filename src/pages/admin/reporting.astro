@@ -1,0 +1,536 @@
+---
+export const prerender = false;
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import AccessGate from '../../components/AccessGate.astro';
+import AdminPageHeader from '../../components/admin/AdminPageHeader.astro';
+
+const session = Astro.locals?.session ?? {};
+const isLoggedIn = Boolean(session.isLoggedIn);
+const isAdmin = Boolean(session.isAdmin);
+
+// Mock data for reporting
+const kpiData = {
+	activeSubscriptions: 24,
+	activeSubscriptionsChange: 12.5,
+	totalRevenue: 145890,
+	revenueChange: 8.3,
+	paymentsReceived: 38,
+	paymentsChange: -2.1,
+	overdueInvoices: 5,
+	overdueAmount: 12450
+};
+
+const revenueByMonth = [
+	{ month: 'Sep', revenue: 18500 },
+	{ month: 'Oct', revenue: 22300 },
+	{ month: 'Nov', revenue: 19800 },
+	{ month: 'Dec', revenue: 28400 },
+	{ month: 'Jan', revenue: 31200 },
+	{ month: 'Feb', revenue: 25690 }
+];
+
+const subscriptionsByPlan = [
+	{ plan: 'Monthly', count: 12, percentage: 50 },
+	{ plan: 'Quarterly', count: 6, percentage: 25 },
+	{ plan: 'Annual', count: 4, percentage: 16.7 },
+	{ plan: 'Weekly', count: 2, percentage: 8.3 }
+];
+
+const paymentsByStatus = [
+	{ status: 'Paid', count: 32, amount: 89420 },
+	{ status: 'Pending', count: 8, amount: 24300 },
+	{ status: 'Overdue', count: 5, amount: 12450 },
+	{ status: 'Failed', count: 2, amount: 3200 }
+];
+
+const recentPayments = [
+	{ id: 'PAY-001', customer: 'Harbor SaaS Studio', date: '2026-02-08', amount: 4808.20, status: 'Paid', method: 'Card' },
+	{ id: 'PAY-002', customer: 'Sunward Labs', date: '2026-02-07', amount: 30360, status: 'Paid', method: 'Bank Transfer' },
+	{ id: 'PAY-003', customer: 'Flux Interactive', date: '2026-02-05', amount: 2620.80, status: 'Pending', method: 'Card' },
+	{ id: 'PAY-004', customer: 'Apex Dynamics', date: '2026-02-03', amount: 1840, status: 'Overdue', method: 'Invoice' },
+	{ id: 'PAY-005', customer: 'Coastal Commerce', date: '2026-02-01', amount: 1250, status: 'Paid', method: 'Card' }
+];
+
+const overdueInvoices = [
+	{ id: 'INV-042', customer: 'Apex Dynamics', dueDate: '2026-01-15', amount: 4200, daysOverdue: 24 },
+	{ id: 'INV-039', customer: 'TechWave Inc', dueDate: '2026-01-20', amount: 3150, daysOverdue: 19 },
+	{ id: 'INV-045', customer: 'DataFlow Systems', dueDate: '2026-01-28', amount: 2800, daysOverdue: 11 },
+	{ id: 'INV-048', customer: 'CloudNine Labs', dueDate: '2026-02-01', amount: 1500, daysOverdue: 7 },
+	{ id: 'INV-051', customer: 'Rapid Solutions', dueDate: '2026-02-05', amount: 800, daysOverdue: 3 }
+];
+
+const getStatusBadgeClass = (status) => {
+	switch (status) {
+		case 'Paid': return 'badge-success';
+		case 'Pending': return 'badge-warning badge-outline';
+		case 'Overdue': return 'badge-error';
+		case 'Failed': return 'badge-error badge-outline';
+		default: return 'badge-ghost';
+	}
+};
+---
+
+<AdminLayout title="TinkerTrack • Reporting" isLoggedIn={isLoggedIn} activeTab="Reporting">
+	{
+		!isLoggedIn ? (
+			<AccessGate
+				badge="Login required"
+				title="Sign in to view reports"
+				description="Admin workspaces are available after you sign in."
+			/>
+		) : !isAdmin ? (
+			<AccessGate
+				badge="Admin only"
+				title="Admin access required"
+				description="Only workspace admins can view reporting analytics."
+				linkHref="/profile"
+				linkText="Go to profile"
+				hint="Request admin access from your workspace owner."
+			/>
+		) : (
+			<div class="p-6 lg:p-8" x-data="reportingData()">
+				<AdminPageHeader eyebrow="Analytics & insights" title="Reporting">
+					<Fragment slot="actions">
+						<div class="flex items-center gap-3">
+							<select class="select select-bordered select-sm bg-base-100/80" x-model="dateRange">
+								<option value="7d">Last 7 days</option>
+								<option value="30d" selected>Last 30 days</option>
+								<option value="90d">Last 90 days</option>
+								<option value="12m">Last 12 months</option>
+								<option value="custom">Custom range</option>
+							</select>
+							<button class="btn btn-outline btn-sm">
+								<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+								</svg>
+								Export
+							</button>
+						</div>
+					</Fragment>
+				</AdminPageHeader>
+
+				<div class="max-w-6xl grid gap-6">
+					<!-- KPI Cards -->
+					<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+						<!-- Active Subscriptions -->
+						<div class="rounded-2xl border border-base-300/70 bg-base-100/60 p-5 hover:shadow-lg transition-shadow">
+							<div class="flex items-start justify-between">
+								<div>
+									<p class="text-xs uppercase tracking-widest text-base-content/50 font-medium">Active Subscriptions</p>
+									<p class="font-display text-3xl font-semibold mt-2">{kpiData.activeSubscriptions}</p>
+								</div>
+								<div class="p-2.5 rounded-xl bg-primary/10">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+									</svg>
+								</div>
+							</div>
+							<div class="flex items-center gap-1.5 mt-3">
+								<span class="badge badge-success badge-sm gap-1">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+									</svg>
+									{kpiData.activeSubscriptionsChange}%
+								</span>
+								<span class="text-xs text-base-content/50">vs last period</span>
+							</div>
+						</div>
+
+						<!-- Total Revenue -->
+						<div class="rounded-2xl border border-base-300/70 bg-base-100/60 p-5 hover:shadow-lg transition-shadow">
+							<div class="flex items-start justify-between">
+								<div>
+									<p class="text-xs uppercase tracking-widest text-base-content/50 font-medium">Total Revenue</p>
+									<p class="font-display text-3xl font-semibold mt-2">${kpiData.totalRevenue.toLocaleString()}</p>
+								</div>
+								<div class="p-2.5 rounded-xl bg-success/10">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+									</svg>
+								</div>
+							</div>
+							<div class="flex items-center gap-1.5 mt-3">
+								<span class="badge badge-success badge-sm gap-1">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+									</svg>
+									{kpiData.revenueChange}%
+								</span>
+								<span class="text-xs text-base-content/50">vs last period</span>
+							</div>
+						</div>
+
+						<!-- Payments Received -->
+						<div class="rounded-2xl border border-base-300/70 bg-base-100/60 p-5 hover:shadow-lg transition-shadow">
+							<div class="flex items-start justify-between">
+								<div>
+									<p class="text-xs uppercase tracking-widest text-base-content/50 font-medium">Payments Received</p>
+									<p class="font-display text-3xl font-semibold mt-2">{kpiData.paymentsReceived}</p>
+								</div>
+								<div class="p-2.5 rounded-xl bg-info/10">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-info" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+									</svg>
+								</div>
+							</div>
+							<div class="flex items-center gap-1.5 mt-3">
+								<span class="badge badge-error badge-sm gap-1">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+									</svg>
+									{Math.abs(kpiData.paymentsChange)}%
+								</span>
+								<span class="text-xs text-base-content/50">vs last period</span>
+							</div>
+						</div>
+
+						<!-- Overdue Invoices -->
+						<div class="rounded-2xl border border-error/30 bg-error/5 p-5 hover:shadow-lg transition-shadow">
+							<div class="flex items-start justify-between">
+								<div>
+									<p class="text-xs uppercase tracking-widest text-error/70 font-medium">Overdue Invoices</p>
+									<p class="font-display text-3xl font-semibold mt-2 text-error">{kpiData.overdueInvoices}</p>
+								</div>
+								<div class="p-2.5 rounded-xl bg-error/10">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+									</svg>
+								</div>
+							</div>
+							<div class="mt-3">
+								<span class="text-sm text-error/80 font-medium">${kpiData.overdueAmount.toLocaleString()}</span>
+								<span class="text-xs text-base-content/50 ml-1">outstanding</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Charts Row -->
+					<div class="grid gap-6 lg:grid-cols-2">
+						<!-- Revenue Chart -->
+						<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+							<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40 flex items-center justify-between">
+								<div>
+									<h3 class="font-display text-lg">Revenue Trend</h3>
+									<p class="text-xs text-base-content/60 mt-0.5">Monthly revenue over the last 6 months</p>
+								</div>
+								<select class="select select-bordered select-xs bg-base-100/80">
+									<option>Revenue</option>
+									<option>Orders</option>
+									<option>Customers</option>
+								</select>
+							</div>
+							<div class="p-5">
+								<canvas id="revenueChart" class="w-full" style="height: 280px;"></canvas>
+							</div>
+						</div>
+
+						<!-- Subscriptions by Plan -->
+						<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+							<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40">
+								<h3 class="font-display text-lg">Subscriptions by Plan</h3>
+								<p class="text-xs text-base-content/60 mt-0.5">Distribution of active subscriptions</p>
+							</div>
+							<div class="p-5 grid grid-cols-2 gap-6">
+								<div class="flex items-center justify-center">
+									<canvas id="subscriptionsPieChart" style="max-height: 200px;"></canvas>
+								</div>
+								<div class="flex flex-col justify-center gap-3">
+									{subscriptionsByPlan.map((item, index) => (
+										<div class="flex items-center justify-between">
+											<div class="flex items-center gap-2">
+												<span class={`w-3 h-3 rounded-full ${index === 0 ? 'bg-primary' : index === 1 ? 'bg-secondary' : index === 2 ? 'bg-accent' : 'bg-info'}`}></span>
+												<span class="text-sm">{item.plan}</span>
+											</div>
+											<div class="text-right">
+												<span class="font-mono text-sm font-medium">{item.count}</span>
+												<span class="text-xs text-base-content/50 ml-1">({item.percentage}%)</span>
+											</div>
+										</div>
+									))}
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Payment Status Overview -->
+					<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+						<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40 flex items-center justify-between">
+							<div>
+								<h3 class="font-display text-lg">Payment Status Overview</h3>
+								<p class="text-xs text-base-content/60 mt-0.5">Current period payment breakdown</p>
+							</div>
+						</div>
+						<div class="p-5">
+							<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+								{paymentsByStatus.map((item) => (
+									<div class={`rounded-xl p-4 ${item.status === 'Paid' ? 'bg-success/10' : item.status === 'Pending' ? 'bg-warning/10' : item.status === 'Overdue' ? 'bg-error/10' : 'bg-base-200/50'}`}>
+										<div class="flex items-center gap-2 mb-2">
+											<span class={`badge badge-sm ${item.status === 'Paid' ? 'badge-success' : item.status === 'Pending' ? 'badge-warning' : item.status === 'Overdue' ? 'badge-error' : 'badge-ghost'}`}>{item.status}</span>
+										</div>
+										<p class="font-display text-2xl font-semibold">{item.count}</p>
+										<p class="text-sm text-base-content/60 font-mono">${item.amount.toLocaleString()}</p>
+									</div>
+								))}
+							</div>
+							<!-- Progress bar visualization -->
+							<div class="mt-6">
+								<div class="flex gap-0.5 h-3 rounded-full overflow-hidden">
+									<div class="bg-success" style={`width: ${(paymentsByStatus[0].count / paymentsByStatus.reduce((a, b) => a + b.count, 0) * 100)}%`} title="Paid"></div>
+									<div class="bg-warning" style={`width: ${(paymentsByStatus[1].count / paymentsByStatus.reduce((a, b) => a + b.count, 0) * 100)}%`} title="Pending"></div>
+									<div class="bg-error" style={`width: ${(paymentsByStatus[2].count / paymentsByStatus.reduce((a, b) => a + b.count, 0) * 100)}%`} title="Overdue"></div>
+									<div class="bg-base-300" style={`width: ${(paymentsByStatus[3].count / paymentsByStatus.reduce((a, b) => a + b.count, 0) * 100)}%`} title="Failed"></div>
+								</div>
+								<div class="flex justify-between mt-2 text-xs text-base-content/50">
+									<span>Total: {paymentsByStatus.reduce((a, b) => a + b.count, 0)} payments</span>
+									<span>Total Amount: ${paymentsByStatus.reduce((a, b) => a + b.amount, 0).toLocaleString()}</span>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Recent Payments & Overdue Invoices -->
+					<div class="grid gap-6 lg:grid-cols-2">
+						<!-- Recent Payments -->
+						<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
+							<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40 flex items-center justify-between">
+								<div>
+									<h3 class="font-display text-lg">Recent Payments</h3>
+									<p class="text-xs text-base-content/60 mt-0.5">Latest payment transactions</p>
+								</div>
+								<a href="/admin/payments" class="btn btn-ghost btn-xs">View all</a>
+							</div>
+							<div class="overflow-x-auto">
+								<table class="table table-sm">
+									<thead>
+										<tr class="text-xs uppercase tracking-widest text-base-content/50 border-b border-base-300/60">
+											<th class="font-medium">Customer</th>
+											<th class="font-medium text-right">Amount</th>
+											<th class="font-medium text-center">Status</th>
+										</tr>
+									</thead>
+									<tbody>
+										{recentPayments.map((payment) => (
+											<tr class="border-b border-base-300/40 hover:bg-base-200/30">
+												<td>
+													<div>
+														<p class="font-medium text-sm">{payment.customer}</p>
+														<p class="text-xs text-base-content/50">{payment.date} • {payment.method}</p>
+													</div>
+												</td>
+												<td class="text-right font-mono text-sm">${payment.amount.toLocaleString()}</td>
+												<td class="text-center">
+													<span class={`badge badge-sm ${getStatusBadgeClass(payment.status)}`}>{payment.status}</span>
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
+						</div>
+
+						<!-- Overdue Invoices -->
+						<div class="rounded-2xl border border-error/30 bg-error/5 overflow-hidden">
+							<div class="px-5 py-4 border-b border-error/20 bg-error/10 flex items-center justify-between">
+								<div>
+									<h3 class="font-display text-lg text-error">Overdue Invoices</h3>
+									<p class="text-xs text-error/70 mt-0.5">Requires immediate attention</p>
+								</div>
+								<span class="badge badge-error">{overdueInvoices.length} overdue</span>
+							</div>
+							<div class="overflow-x-auto">
+								<table class="table table-sm">
+									<thead>
+										<tr class="text-xs uppercase tracking-widest text-error/60 border-b border-error/20">
+											<th class="font-medium">Invoice</th>
+											<th class="font-medium text-right">Amount</th>
+											<th class="font-medium text-center">Days Overdue</th>
+										</tr>
+									</thead>
+									<tbody>
+										{overdueInvoices.map((invoice) => (
+											<tr class="border-b border-error/10 hover:bg-error/10">
+												<td>
+													<div>
+														<p class="font-medium text-sm">{invoice.customer}</p>
+														<p class="text-xs text-base-content/50">{invoice.id} • Due: {invoice.dueDate}</p>
+													</div>
+												</td>
+												<td class="text-right font-mono text-sm font-medium text-error">${invoice.amount.toLocaleString()}</td>
+												<td class="text-center">
+													<span class={`badge badge-sm ${invoice.daysOverdue > 14 ? 'badge-error' : invoice.daysOverdue > 7 ? 'badge-warning' : 'badge-ghost'}`}>
+														{invoice.daysOverdue} days
+													</span>
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
+							<div class="px-5 py-3 border-t border-error/20 bg-error/10 flex items-center justify-between">
+								<span class="text-sm text-error font-medium">Total Outstanding: ${overdueInvoices.reduce((a, b) => a + b.amount, 0).toLocaleString()}</span>
+								<button class="btn btn-error btn-sm">Send Reminders</button>
+							</div>
+						</div>
+					</div>
+
+					<!-- Summary Stats Row -->
+					<div class="rounded-2xl border border-base-300/70 bg-gradient-to-r from-primary/5 via-base-100/60 to-accent/5 overflow-hidden">
+						<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40">
+							<h3 class="font-display text-lg">Period Summary</h3>
+							<p class="text-xs text-base-content/60 mt-0.5">Key metrics for the selected period</p>
+						</div>
+						<div class="p-5 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+							<div class="text-center">
+								<p class="text-xs uppercase tracking-widest text-base-content/50 mb-1">Avg. Order Value</p>
+								<p class="font-display text-2xl font-semibold text-primary">$3,842</p>
+							</div>
+							<div class="text-center">
+								<p class="text-xs uppercase tracking-widest text-base-content/50 mb-1">Customer Retention</p>
+								<p class="font-display text-2xl font-semibold text-success">94.2%</p>
+							</div>
+							<div class="text-center">
+								<p class="text-xs uppercase tracking-widest text-base-content/50 mb-1">New Customers</p>
+								<p class="font-display text-2xl font-semibold text-info">12</p>
+							</div>
+							<div class="text-center">
+								<p class="text-xs uppercase tracking-widest text-base-content/50 mb-1">Churn Rate</p>
+								<p class="font-display text-2xl font-semibold text-warning">2.1%</p>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		)
+	}
+</AdminLayout>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<script define:vars={{ revenueByMonth, subscriptionsByPlan }}>
+	window.chartData = {
+		revenueByMonth,
+		subscriptionsByPlan
+	};
+</script>
+
+<script>
+	document.addEventListener('DOMContentLoaded', () => {
+		const chartData = (window as any).chartData;
+		const Chart = (window as any).Chart;
+		
+		if (!Chart) return;
+
+		// Get CSS custom property colors
+		const getColor = (variable: string, fallback: string) => {
+			return getComputedStyle(document.documentElement).getPropertyValue(variable).trim() || fallback;
+		};
+
+		// Revenue Line Chart
+		const revenueCtx = document.getElementById('revenueChart') as HTMLCanvasElement;
+		if (revenueCtx) {
+			new Chart(revenueCtx, {
+				type: 'line',
+				data: {
+					labels: chartData.revenueByMonth.map((d: any) => d.month),
+					datasets: [{
+						label: 'Revenue',
+						data: chartData.revenueByMonth.map((d: any) => d.revenue),
+						borderColor: 'oklch(70% 0.15 160)',
+						backgroundColor: 'oklch(70% 0.15 160 / 0.1)',
+						borderWidth: 3,
+						fill: true,
+						tension: 0.4,
+						pointRadius: 4,
+						pointBackgroundColor: 'oklch(70% 0.15 160)',
+						pointBorderColor: '#fff',
+						pointBorderWidth: 2
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: {
+						legend: {
+							display: false
+						},
+						tooltip: {
+							backgroundColor: 'rgba(0, 0, 0, 0.8)',
+							padding: 12,
+							titleFont: { size: 14 },
+							bodyFont: { size: 13 },
+							callbacks: {
+								label: (context: any) => `$${context.raw.toLocaleString()}`
+							}
+						}
+					},
+					scales: {
+						x: {
+							grid: {
+								display: false
+							},
+							ticks: {
+								font: { size: 11 }
+							}
+						},
+						y: {
+							grid: {
+								color: 'rgba(0, 0, 0, 0.05)'
+							},
+							ticks: {
+								font: { size: 11 },
+								callback: (value: any) => '$' + (value / 1000) + 'k'
+							}
+						}
+					}
+				}
+			});
+		}
+
+		// Subscriptions Pie Chart
+		const pieCtx = document.getElementById('subscriptionsPieChart') as HTMLCanvasElement;
+		if (pieCtx) {
+			new Chart(pieCtx, {
+				type: 'doughnut',
+				data: {
+					labels: chartData.subscriptionsByPlan.map((d: any) => d.plan),
+					datasets: [{
+						data: chartData.subscriptionsByPlan.map((d: any) => d.count),
+						backgroundColor: [
+							'oklch(70% 0.15 160)',
+							'oklch(70% 0.15 300)',
+							'oklch(75% 0.15 80)',
+							'oklch(70% 0.15 230)'
+						],
+						borderWidth: 0,
+						hoverOffset: 4
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: true,
+					cutout: '60%',
+					plugins: {
+						legend: {
+							display: false
+						},
+						tooltip: {
+							backgroundColor: 'rgba(0, 0, 0, 0.8)',
+							padding: 12,
+							callbacks: {
+								label: (context: any) => ` ${context.label}: ${context.raw} subscriptions`
+							}
+						}
+					}
+				}
+			});
+		}
+	});
+
+	// Alpine.js data
+	document.addEventListener('alpine:init', () => {
+		(window as any).Alpine.data('reportingData', () => ({
+			dateRange: '30d'
+		}));
+	});
+</script>
