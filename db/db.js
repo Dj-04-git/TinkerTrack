@@ -51,9 +51,21 @@ db.serialize(() => {
       productName TEXT NOT NULL,
       productType TEXT,
       salesPrice REAL,
-      costPrice REAL
+      costPrice REAL,
+      tax REAL DEFAULT 0
     )
   `);
+
+  // Add tax column if it doesn't exist (for existing databases)
+  db.all("PRAGMA table_info(products)", (err, columns) => {
+    if (err || !Array.isArray(columns)) {
+      return;
+    }
+    const hasTax = columns.some((column) => column.name === "tax");
+    if (!hasTax) {
+      db.run("ALTER TABLE products ADD COLUMN tax REAL DEFAULT 0");
+    }
+  });
 
   db.run(`
     CREATE TABLE IF NOT EXISTS product_variants (
@@ -150,7 +162,6 @@ db.serialize(() => {
     CREATE TABLE IF NOT EXISTS subscriptions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       subscriptionNumber TEXT UNIQUE,
-      userid INTEGER,
       customerName TEXT,
       planId INTEGER,
       startDate TEXT,
@@ -162,8 +173,7 @@ db.serialize(() => {
       tax REAL DEFAULT 0,
       total REAL DEFAULT 0,
       status TEXT DEFAULT 'Draft',
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (userid) REFERENCES users(id)
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 

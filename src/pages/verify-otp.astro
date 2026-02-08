@@ -87,8 +87,14 @@ const emailParam = Astro.url.searchParams.get('email') ?? '';
 									<span id="verify-toast-message"></span>
 								</div>
 							</div>
+							<div class="toast toast-top toast-end hidden" id="success-toast">
+								<div class="alert alert-success">
+									<span id="success-toast-message"></span>
+								</div>
+							</div>
 							<p class="mt-4 text-sm text-base-content/70">
-								Need a new code? <a class="link-hover" href="/register">Resend</a>
+								Need a new code? 
+								<button type="button" class="link link-hover text-primary" id="resend-otp-btn">Resend OTP</button>
 							</p>
 						</div>
 					</div>
@@ -159,6 +165,53 @@ const emailParam = Astro.url.searchParams.get('email') ?? '';
 			window.location.href = '/login';
 		} catch (error) {
 			showToast('Network error. Please try again.');
+		}
+	});
+
+	// Resend OTP functionality
+	const resendBtn = document.getElementById('resend-otp-btn');
+	const successToast = document.getElementById('success-toast');
+	const successToastMessage = document.getElementById('success-toast-message');
+
+	const showSuccessToast = (message) => {
+		successToastMessage.textContent = message;
+		successToast.classList.remove('hidden');
+		setTimeout(() => successToast.classList.add('hidden'), 4000);
+	};
+
+	resendBtn?.addEventListener('click', async () => {
+		const emailInput = form.querySelector('[name="email"]');
+		const email = emailInput?.value?.trim();
+
+		if (!email) {
+			setError('email', 'Please enter your email address first.');
+			return;
+		}
+
+		resendBtn.disabled = true;
+		resendBtn.textContent = 'Sending...';
+
+		try {
+			const response = await fetch(`${form.dataset.backendUrl}/auth/resend-otp`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ email })
+			});
+
+			const data = await response.json();
+			
+			if (!response.ok) {
+				showToast(data.error ?? 'Unable to resend OTP.');
+			} else {
+				showSuccessToast(data.message ?? 'A new OTP has been sent to your email.');
+			}
+		} catch (error) {
+			showToast('Network error. Please try again.');
+		} finally {
+			resendBtn.disabled = false;
+			resendBtn.textContent = 'Resend OTP';
 		}
 	});
 </script>
