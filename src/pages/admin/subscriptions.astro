@@ -8,21 +8,45 @@ const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
 const isAdmin = Boolean(session.isAdmin);
 
-const subscriptions = [
-	{ id: 'SO001', customer: 'Harbor SaaS Studio', status: 'Quotation', plan: 'Monthly', orderDate: '2026-02-01', expiration: '2026-02-15', amount: 4808.20 },
-	{ id: 'SO002', customer: 'Sunward Labs', status: 'Confirmed', plan: 'Annual', orderDate: '2026-01-15', expiration: '2027-01-15', amount: 30360 },
-	{ id: 'SO003', customer: 'Flux Interactive', status: 'Quotation Sent', plan: 'Monthly', orderDate: '2026-02-05', expiration: '2026-02-20', amount: 2620.80 },
-	{ id: 'SO004', customer: 'Apex Dynamics', status: 'Closed', plan: 'Quarterly', orderDate: '2025-10-01', expiration: '2026-01-01', amount: 1840 },
-	{ id: 'SO005', customer: 'Coastal Commerce', status: 'Quotation', plan: 'Monthly', orderDate: '2026-02-08', expiration: '2026-02-22', amount: 1250 },
-];
+// Fetch subscriptions from API
+let subscriptions: any[] = [];
+let error: string | null = null;
+
+if (isLoggedIn && isAdmin) {
+	try {
+		const response = await fetch('http://localhost:3000/subscriptions');
+		if (response.ok) {
+			const data = await response.json();
+			// Transform API response to match table structure
+			subscriptions = data.map((sub: any) => ({
+				id: sub.subscriptionNumber || `S-${String(sub.id).padStart(4, '0')}`,
+				dbId: sub.id,
+				customer: sub.customerName || 'Unknown Customer',
+				status: sub.status || 'Draft',
+				plan: sub.planName || sub.billingPeriod || 'No Plan',
+				orderDate: sub.startDate || sub.createdAt?.split('T')[0] || '',
+				expiration: sub.endDate || '',
+				amount: sub.total || 0
+			}));
+		} else {
+			error = 'Failed to load subscriptions';
+		}
+	} catch (e) {
+		error = 'Unable to connect to the server';
+		console.error('Subscription fetch error:', e);
+	}
+}
 
 const getStatusBadgeClass = (status: string) => {
 	switch (status) {
 		case 'Quotation': return 'badge-warning badge-outline';
 		case 'Quotation Sent': return 'badge-info badge-outline';
 		case 'Confirmed': return 'badge-success';
+		case 'Active': return 'badge-success';
 		case 'Closed': return 'badge-neutral';
 		case 'Cancelled': return 'badge-error badge-outline';
+		case 'Draft': return 'badge-ghost';
+		case 'Expired': return 'badge-error';
 		default: return 'badge-ghost';
 	}
 };
@@ -58,6 +82,15 @@ const getStatusBadgeClass = (status: string) => {
 					</Fragment>
 				</AdminPageHeader>
 
+				{error && (
+					<div class="alert alert-warning mb-6 max-w-5xl">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+						</svg>
+						<span>{error}</span>
+					</div>
+				)}
+
 				<!-- Subscriptions list -->
 				<div class="max-w-5xl">
 					<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden" x-data="{ search: '', subscriptions: [], get filteredSubs() { return this.subscriptions.filter(s => s.customer.toLowerCase().includes(this.search.toLowerCase()) || s.id.toLowerCase().includes(this.search.toLowerCase())) } }" x-init={`subscriptions = ${JSON.stringify(subscriptions)}`}>
@@ -88,20 +121,20 @@ const getStatusBadgeClass = (status: string) => {
 								</thead>
 								<tbody>
 									<template x-if="filteredSubs.length > 0">
-										<template x-for="sub in filteredSubs" :key="sub.id">
-											<tr class="hover:bg-base-200/40 transition-colors cursor-pointer border-b border-base-300/40" @click="window.location.href = `/admin/subscriptions/${sub.id}`">
+										<template x-for="sub in filteredSubs" :key="sub.dbId">
+											<tr class="hover:bg-base-200/40 transition-colors cursor-pointer border-b border-base-300/40" @click="window.location.href = `/admin/subscriptions/${sub.dbId}`">
 												<td class="font-medium text-primary" x-text="sub.id"></td>
 												<td x-text="sub.customer"></td>
 												<td>
 													<span class="badge badge-sm" 
-														:class="sub.status === 'Quotation' ? 'badge-warning badge-outline' : sub.status === 'Quotation Sent' ? 'badge-info badge-outline' : sub.status === 'Confirmed' ? 'badge-success' : sub.status === 'Closed' ? 'badge-neutral' : sub.status === 'Cancelled' ? 'badge-error badge-outline' : 'badge-ghost'"
+														:class="sub.status === 'Quotation' ? 'badge-warning badge-outline' : sub.status === 'Quotation Sent' ? 'badge-info badge-outline' : sub.status === 'Confirmed' || sub.status === 'Active' ? 'badge-success' : sub.status === 'Closed' ? 'badge-neutral' : sub.status === 'Cancelled' ? 'badge-error badge-outline' : sub.status === 'Expired' ? 'badge-error' : 'badge-ghost'"
 														x-text="sub.status"></span>
 												</td>
 												<td x-text="sub.plan"></td>
 												<td class="text-base-content/70" x-text="sub.expiration"></td>
 												<td class="text-right font-mono text-sm">$<span x-text="sub.amount.toLocaleString()"></span></td>
 												<td>
-													<a :href="`/admin/subscriptions/${sub.id}`" class="btn btn-ghost btn-xs" @click.stop>
+													<a :href="`/admin/subscriptions/${sub.dbId}`" class="btn btn-ghost btn-xs" @click.stop>
 														<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 															<path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
 														</svg>

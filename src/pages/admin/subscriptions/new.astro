@@ -10,12 +10,41 @@ const session = Astro.locals?.session ?? {};
 const isLoggedIn = Boolean(session.isLoggedIn);
 const isAdmin = Boolean(session.isAdmin);
 
-// Generate next subscription number (mock)
-const nextSubNumber = 'SO004';
+// Fetch data from API
+let customers: any[] = [];
+let recurringPlans: any[] = [];
+let subscriptionCount = 0;
+let error: string | null = null;
 
-// Mock data for dropdowns
-const customers = ['Harbor SaaS Studio', 'Sunward Labs', 'Flux Interactive', 'Apex Dynamics', 'Coastal Commerce'];
-const recurringPlans = ['Weekly Plan', 'Monthly Plan', 'Quarterly Plan', 'Annual Plan'];
+if (isLoggedIn && isAdmin) {
+	try {
+		// Fetch customers for dropdown
+		const customersResponse = await fetch('http://localhost:3000/subscriptions/customers');
+		if (customersResponse.ok) {
+			customers = await customersResponse.json();
+		}
+
+		// Fetch recurring plans for dropdown
+		const plansResponse = await fetch('http://localhost:3000/recurring-plans');
+		if (plansResponse.ok) {
+			recurringPlans = await plansResponse.json();
+		}
+
+		// Get subscription count for next number preview
+		const countResponse = await fetch('http://localhost:3000/subscriptions/count');
+		if (countResponse.ok) {
+			const data = await countResponse.json();
+			subscriptionCount = data.count || 0;
+		}
+	} catch (e) {
+		error = 'Unable to connect to the server';
+		console.error('Subscription data fetch error:', e);
+	}
+}
+
+// Generate next subscription number (preview)
+const nextSubNumber = `S-${String(subscriptionCount + 1).padStart(4, '0')}`;
+
 const paymentTerms = ['Immediate', 'Net 15', 'Net 30', 'Net 60'];
 
 const statusFlow = ['Quotation', 'Quotation Sent', 'Confirmed'];
@@ -24,6 +53,9 @@ const statusFlow = ['Quotation', 'Quotation Sent', 'Confirmed'];
 const defaultExpiration = new Date();
 defaultExpiration.setDate(defaultExpiration.getDate() + 15);
 const formattedExpiration = defaultExpiration.toISOString().split('T')[0];
+
+// Default start date (today)
+const today = new Date().toISOString().split('T')[0];
 ---
 
 <AdminLayout title="TinkerTrack • New Subscription" isLoggedIn={isLoggedIn} activeTab="Subscriptions">
@@ -44,7 +76,49 @@ const formattedExpiration = defaultExpiration.toISOString().split('T')[0];
 				hint="Request admin access from your workspace owner."
 			/>
 		) : (
-			<div class="p-6 lg:p-8">
+			<div class="p-6 lg:p-8" x-data={`{
+				saving: false,
+				
+				async createSubscription() {
+					this.saving = true;
+					try {
+						const form = document.getElementById('newSubscriptionForm');
+						const formData = new FormData(form);
+						
+						const customerId = formData.get('customerId');
+						if (!customerId) {
+							alert('Please select a customer');
+							this.saving = false;
+							return;
+						}
+						
+						const response = await fetch('http://localhost:3000/subscriptions', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({
+								customerId: parseInt(customerId),
+								planId: formData.get('planId') ? parseInt(formData.get('planId')) : null,
+								startDate: formData.get('startDate') || null,
+								endDate: formData.get('endDate') || null,
+								paymentTerms: formData.get('paymentTerms'),
+								notes: formData.get('notes') || null
+							})
+						});
+						
+						if (response.ok) {
+							const data = await response.json();
+							window.location.href = '/admin/subscriptions/' + data.subscriptionId;
+						} else {
+							const data = await response.json();
+							alert(data.error || 'Failed to create subscription');
+						}
+					} catch (e) {
+						alert('Error creating subscription');
+					} finally {
+						this.saving = false;
+					}
+				}
+			}`}>
 				<AdminPageHeader eyebrow="New subscription" title={nextSubNumber}>
 					<Fragment slot="lead">
 						<a href="/admin/subscriptions" class="btn btn-ghost btn-xs">
@@ -67,6 +141,7 @@ const formattedExpiration = defaultExpiration.toISOString().split('T')[0];
 					</div>
 
 					<!-- Subscription form -->
+					<form id="newSubscriptionForm" @submit.prevent="createSubscription()">
 					<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
 						<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40">
 							<h3 class="font-display text-lg">Subscription Information</h3>
@@ -83,10 +158,10 @@ const formattedExpiration = defaultExpiration.toISOString().split('T')[0];
 
 								<label class="form-control">
 									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Customer</span>
-									<select class="select select-bordered bg-base-100/80" required>
+									<select class="select select-bordered bg-base-100/80" name="customerId" required>
 										<option value="" disabled selected>Select customer...</option>
-										{customers.map((c) => (
-											<option>{c}</option>
+										{customers.map((c: any) => (
+											<option value={c.id}>{c.name}</option>
 										))}
 										<option disabled>──────────</option>
 										<option value="new">+ Create new customer</option>
@@ -98,23 +173,23 @@ const formattedExpiration = defaultExpiration.toISOString().split('T')[0];
 							<div class="grid gap-5 sm:grid-cols-2">
 								<label class="form-control">
 									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Expiration</span>
-									<input type="date" value={formattedExpiration} class="input input-bordered bg-base-100/80" />
+									<input type="date" value={formattedExpiration} class="input input-bordered bg-base-100/80" name="endDate" />
 									<span class="label-text-alt">Expiry of quotation, after which customer cannot sign or pay</span>
 								</label>
 
 								<label class="form-control">
 									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Recurring Plan</span>
-									<select class="select select-bordered bg-base-100/80">
-										<option value="" disabled selected>Select plan...</option>
-										{recurringPlans.map((p) => (
-											<option>{p}</option>
+									<select class="select select-bordered bg-base-100/80" name="planId">
+										<option value="">No Plan</option>
+										{recurringPlans.map((p: any) => (
+											<option value={p.id}>{p.planName} ({p.billingPeriod})</option>
 										))}
 									</select>
 								</label>
 
 								<label class="form-control">
 									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Payment Term</span>
-									<select class="select select-bordered bg-base-100/80">
+									<select class="select select-bordered bg-base-100/80" name="paymentTerms">
 										{paymentTerms.map((t) => (
 											<option>{t}</option>
 										))}
@@ -135,13 +210,13 @@ const formattedExpiration = defaultExpiration.toISOString().split('T')[0];
 						<div class="p-5 grid gap-5">
 							<label class="form-control">
 								<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Internal Notes</span>
-								<textarea class="textarea textarea-bordered bg-base-100/80 h-32" placeholder="Add internal notes about this subscription..."></textarea>
+								<textarea class="textarea textarea-bordered bg-base-100/80 h-32" name="notes" placeholder="Add internal notes about this subscription..."></textarea>
 							</label>
 
 							<div class="grid gap-5 sm:grid-cols-2">
 								<label class="form-control">
 									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Start Date</span>
-									<input type="date" class="input input-bordered bg-base-100/80" />
+									<input type="date" class="input input-bordered bg-base-100/80" name="startDate" value={today} />
 									<span class="label-text-alt">When the subscription should start</span>
 								</label>
 
@@ -156,13 +231,17 @@ const formattedExpiration = defaultExpiration.toISOString().split('T')[0];
 					<!-- Action buttons -->
 					<div class="flex items-center justify-end gap-3 pt-2">
 						<a href="/admin/subscriptions" class="btn btn-ghost btn-sm">Cancel</a>
-						<button class="btn btn-primary btn-sm">
-							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-								<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-							</svg>
-							Create subscription
+						<button type="submit" class="btn btn-primary btn-sm" :disabled="saving">
+							<span x-show="!saving" class="flex items-center gap-2">
+								<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+								</svg>
+								Create subscription
+							</span>
+							<span x-show="saving" class="loading loading-spinner loading-xs"></span>
 						</button>
 					</div>
+					</form>
 				</div>
 			</div>
 		)

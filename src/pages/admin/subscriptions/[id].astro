@@ -11,84 +11,79 @@ const isAdmin = Boolean(session.isAdmin);
 
 const { id } = Astro.params;
 
-// Mock subscription data
-const subscriptions: Record<string, any> = {
-	'SO001': {
-		id: 'SO001',
-		customer: 'Harbor SaaS Studio',
-		status: 'Quotation',
-		statusIndex: 0,
-		plan: 'Monthly Plan',
-		paymentTerm: 'Net 15',
-		orderDate: '2026-02-01',
-		expiration: '2026-02-15',
-		nextInvoice: '2026-03-01',
-		quotationTemplate: 'Starter Subscription Quote',
-		orderLines: [
-			{ product: 'Pulse Analytics Suite', quantity: 1, unitPrice: 2400, discount: 0, taxes: 360, amount: 2760 },
-			{ product: 'Retention Lab', quantity: 2, unitPrice: 980, discount: 98, taxes: 186.2, amount: 2048.2 }
-		],
-		notes: 'Customer requested extended trial period.'
-	},
-	'SO002': {
-		id: 'SO002',
-		customer: 'Sunward Labs',
-		status: 'Confirmed',
-		statusIndex: 2,
-		plan: 'Annual Plan',
-		paymentTerm: 'Net 30',
-		orderDate: '2026-01-15',
-		expiration: '2027-01-15',
-		nextInvoice: '2026-02-15',
-		quotationTemplate: 'Enterprise Annual',
-		orderLines: [
-			{ product: 'Enterprise Platform', quantity: 1, unitPrice: 24000, discount: 2400, taxes: 3240, amount: 24840 },
-			{ product: 'Priority Support', quantity: 1, unitPrice: 4800, discount: 0, taxes: 720, amount: 5520 }
-		],
-		notes: ''
-	},
-	'SO003': {
-		id: 'SO003',
-		customer: 'Flux Interactive',
-		status: 'Quotation Sent',
-		statusIndex: 1,
-		plan: 'Monthly Plan',
-		paymentTerm: 'Net 15',
-		orderDate: '2026-02-05',
-		expiration: '2026-02-20',
-		nextInvoice: '2026-03-05',
-		quotationTemplate: 'Starter Subscription Quote',
-		orderLines: [
-			{ product: 'Design Toolkit', quantity: 3, unitPrice: 800, discount: 120, taxes: 340.8, amount: 2620.8 }
-		],
-		notes: 'Awaiting customer response.'
-	},
-	'SO004': {
-		id: 'SO004',
-		customer: 'Apex Dynamics',
-		status: 'Closed',
-		statusIndex: 5,
-		plan: 'Quarterly Plan',
-		paymentTerm: 'Net 30',
-		orderDate: '2025-10-01',
-		expiration: '2026-01-01',
-		nextInvoice: null,
-		quotationTemplate: 'SMB Monthly',
-		orderLines: [
-			{ product: 'Design Toolkit', quantity: 2, unitPrice: 800, discount: 0, taxes: 240, amount: 1840 }
-		],
-		notes: 'Subscription closed by customer request.'
-	}
-};
+// Fetch subscription from API
+let subscription: any = null;
+let customers: any[] = [];
+let recurringPlans: any[] = [];
+let error: string | null = null;
 
-const subscription = subscriptions[id ?? ''] ?? null;
+if (isLoggedIn && isAdmin && id) {
+	try {
+		// Fetch subscription details
+		const subResponse = await fetch(`http://localhost:3000/subscriptions/${id}`);
+		if (subResponse.ok) {
+			const subData = await subResponse.json();
+			subscription = {
+				id: subData.subscriptionNumber || `S-${String(subData.id).padStart(4, '0')}`,
+				dbId: subData.id,
+				customer: subData.customerName || 'Unknown Customer',
+				customerId: subData.customerId,
+				status: subData.status || 'Draft',
+				statusIndex: getStatusIndex(subData.status),
+				plan: subData.planName || 'No Plan',
+				planId: subData.planId,
+				billingPeriod: subData.billingPeriod,
+				paymentTerm: subData.paymentTerms || 'Net 30',
+				orderDate: subData.startDate || subData.createdAt?.split('T')[0] || '',
+				expiration: subData.endDate || '',
+				nextInvoice: null,
+				notes: subData.notes || '',
+				subtotal: subData.subtotal || 0,
+				discountAmount: subData.discountAmount || 0,
+				tax: subData.tax || 0,
+				total: subData.total || 0,
+				orderLines: (subData.items || []).map((item: any) => ({
+					productId: item.productId,
+					product: item.productName || item.description || 'Unknown Product',
+					quantity: item.quantity || 1,
+					unitPrice: item.unitPrice || 0,
+					discount: 0,
+					taxes: item.tax || 0,
+					amount: item.amount || (item.unitPrice * item.quantity)
+				}))
+			};
+		} else if (subResponse.status === 404) {
+			subscription = null;
+		} else {
+			error = 'Failed to load subscription';
+		}
+
+		// Fetch customers for dropdown
+		const customersResponse = await fetch('http://localhost:3000/subscriptions/customers');
+		if (customersResponse.ok) {
+			customers = await customersResponse.json();
+		}
+
+		// Fetch recurring plans for dropdown
+		const plansResponse = await fetch('http://localhost:3000/recurring-plans');
+		if (plansResponse.ok) {
+			recurringPlans = await plansResponse.json();
+		}
+	} catch (e) {
+		error = 'Unable to connect to the server';
+		console.error('Subscription fetch error:', e);
+	}
+}
+
+function getStatusIndex(status: string): number {
+	const statuses = ['Draft', 'Quotation', 'Quotation Sent', 'Confirmed', 'Active', 'Closed', 'Cancelled', 'Expired'];
+	return Math.max(0, statuses.indexOf(status));
+}
 
 // Status flow changes based on current status
-// Base flow: Quotation → Quotation Sent → Confirmed
-// After Confirmed, additional states: Close, Renew, Upsell (in that order)
 const getStatusFlow = (status: string) => {
 	const baseFlow = ['Quotation', 'Quotation Sent', 'Confirmed'];
-	if (['Confirmed', 'Renewed', 'Upsold', 'Closed', 'Cancelled'].includes(status)) {
+	if (['Confirmed', 'Active', 'Renewed', 'Upsold', 'Closed', 'Cancelled'].includes(status)) {
 		return [...baseFlow, 'Closed'];
 	}
 	return baseFlow;
@@ -97,24 +92,22 @@ const getStatusFlow = (status: string) => {
 const statusFlow = subscription ? getStatusFlow(subscription.status) : ['Quotation', 'Quotation Sent', 'Confirmed'];
 const currentStatusIndex = subscription?.statusIndex ?? 0;
 
-// Calculate totals
+// Calculate totals from order lines
 const subtotal = subscription?.orderLines?.reduce((sum: number, line: any) => sum + (line.unitPrice * line.quantity), 0) ?? 0;
 const totalDiscount = subscription?.orderLines?.reduce((sum: number, line: any) => sum + line.discount, 0) ?? 0;
 const totalTaxes = subscription?.orderLines?.reduce((sum: number, line: any) => sum + line.taxes, 0) ?? 0;
 const grandTotal = subscription?.orderLines?.reduce((sum: number, line: any) => sum + line.amount, 0) ?? 0;
 
-// Mock customers and templates for dropdowns
-const customers = ['Harbor SaaS Studio', 'Sunward Labs', 'Flux Interactive', 'Apex Dynamics', 'Coastal Commerce'];
+// Mock quotation templates for now
 const quotationTemplates = ['Starter Subscription Quote', 'Enterprise Annual', 'SMB Monthly', 'Custom Quote'];
-const recurringPlans = ['Weekly Plan', 'Monthly Plan', 'Quarterly Plan', 'Annual Plan'];
 const paymentTerms = ['Immediate', 'Net 15', 'Net 30', 'Net 60'];
 
 // Check if subscription is in a confirmed state (can create invoice, renew, upsell, close)
-const isConfirmed = subscription?.status === 'Confirmed';
-const canSend = subscription?.status === 'Quotation';
-const canConfirm = ['Quotation', 'Quotation Sent'].includes(subscription?.status ?? '');
+const isConfirmed = subscription?.status === 'Confirmed' || subscription?.status === 'Active';
+const canSend = subscription?.status === 'Quotation' || subscription?.status === 'Draft';
+const canConfirm = ['Draft', 'Quotation', 'Quotation Sent'].includes(subscription?.status ?? '');
 const canPreview = subscription?.status === 'Quotation Sent' || isConfirmed;
-const isClosed = ['Closed', 'Cancelled'].includes(subscription?.status ?? '');
+const isClosed = ['Closed', 'Cancelled', 'Expired'].includes(subscription?.status ?? '');
 ---
 
 <AdminLayout title={subscription ? `TinkerTrack • ${subscription.id}` : 'TinkerTrack • Subscription Not Found'} isLoggedIn={isLoggedIn} activeTab="Subscriptions">
@@ -146,7 +139,64 @@ const isClosed = ['Closed', 'Cancelled'].includes(subscription?.status ?? '');
 				</div>
 			</div>
 		) : (
-			<div class="p-6 lg:p-8" x-data="{ activeTab: 'orderLines' }">
+			<div class="p-6 lg:p-8" x-data={`{
+				activeTab: 'orderLines',
+				saving: false,
+				statusLoading: false,
+				
+				async saveSubscription() {
+					this.saving = true;
+					try {
+						const form = document.getElementById('subscriptionForm');
+						const formData = new FormData(form);
+						
+						const response = await fetch('http://localhost:3000/subscriptions/${subscription.dbId}', {
+							method: 'PUT',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({
+								customerId: parseInt(formData.get('customerId')),
+								planId: formData.get('planId') ? parseInt(formData.get('planId')) : null,
+								startDate: formData.get('startDate'),
+								paymentTerms: formData.get('paymentTerms'),
+								notes: formData.get('notes')
+							})
+						});
+						
+						if (response.ok) {
+							window.location.reload();
+						} else {
+							const data = await response.json();
+							alert(data.error || 'Failed to save');
+						}
+					} catch (e) {
+						alert('Error saving subscription');
+					} finally {
+						this.saving = false;
+					}
+				},
+				
+				async updateStatus(newStatus) {
+					this.statusLoading = true;
+					try {
+						const response = await fetch('http://localhost:3000/subscriptions/${subscription.dbId}/status', {
+							method: 'PUT',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ status: newStatus })
+						});
+						
+						if (response.ok) {
+							window.location.reload();
+						} else {
+							const data = await response.json();
+							alert(data.error || 'Failed to update status');
+						}
+					} catch (e) {
+						alert('Error updating status');
+					} finally {
+						this.statusLoading = false;
+					}
+				}
+			}`}>
 				<AdminPageHeader eyebrow="Subscription details" title={subscription.id}>
 					<Fragment slot="lead">
 						<a href="/admin/subscriptions" class="btn btn-ghost btn-xs">
@@ -165,10 +215,16 @@ const isClosed = ['Closed', 'Cancelled'].includes(subscription?.status ?? '');
 							New
 						</a>
 						{canSend && (
-							<button class="btn btn-secondary btn-sm">Send</button>
+							<button class="btn btn-secondary btn-sm" @click="updateStatus('Quotation Sent')" :disabled="statusLoading">
+								<span x-show="!statusLoading">Send</span>
+								<span x-show="statusLoading" class="loading loading-spinner loading-xs"></span>
+							</button>
 						)}
 						{canConfirm && (
-							<button class="btn btn-primary btn-sm">Confirm</button>
+							<button class="btn btn-primary btn-sm" @click="updateStatus('Confirmed')" :disabled="statusLoading">
+								<span x-show="!statusLoading">Confirm</span>
+								<span x-show="statusLoading" class="loading loading-spinner loading-xs"></span>
+							</button>
 						)}
 						{canPreview && (
 							<button class="btn btn-ghost btn-sm">
@@ -185,16 +241,15 @@ const isClosed = ['Closed', 'Cancelled'].includes(subscription?.status ?? '');
 				<!-- Confirmed subscription actions -->
 				{isConfirmed && !isClosed && (
 					<div class="flex flex-wrap items-center gap-2 -mt-2 mb-2">
-						<a href={`/admin/subscriptions/${subscription.id}/invoice/new`} class="btn btn-sm btn-outline">
+						<a href={`/admin/subscriptions/${subscription.dbId}/invoice/new`} class="btn btn-sm btn-outline">
 							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 								<path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
 							</svg>
 							Create Invoice
 						</a>
-						<button class="btn btn-sm btn-ghost text-error">Cancel</button>
-						<button class="btn btn-sm btn-ghost">Renew</button>
-						<button class="btn btn-sm btn-ghost">Upsell</button>
-						<button class="btn btn-sm btn-ghost">Close</button>
+						<button class="btn btn-sm btn-ghost text-error" @click="updateStatus('Cancelled')" :disabled="statusLoading">Cancel</button>
+						<button class="btn btn-sm btn-ghost" @click="updateStatus('Active')" :disabled="statusLoading">Activate</button>
+						<button class="btn btn-sm btn-ghost" @click="updateStatus('Closed')" :disabled="statusLoading">Close</button>
 					</div>
 				)}
 
@@ -205,6 +260,7 @@ const isClosed = ['Closed', 'Cancelled'].includes(subscription?.status ?? '');
 					</div>
 
 					<!-- Subscription form -->
+					<form id="subscriptionForm" @submit.prevent="saveSubscription()">
 					<div class="rounded-2xl border border-base-300/70 bg-base-100/60 overflow-hidden">
 						<div class="px-5 py-4 border-b border-base-300/60 bg-base-100/40">
 							<h3 class="font-display text-lg">Subscription Information</h3>
@@ -220,7 +276,7 @@ const isClosed = ['Closed', 'Cancelled'].includes(subscription?.status ?? '');
 
 								<label class="form-control">
 									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Expiration</span>
-									<input type="date" value={subscription.expiration} class="input input-bordered bg-base-100/80" />
+									<input type="date" value={subscription.expiration} class="input input-bordered bg-base-100/80" name="endDate" />
 									<span class="label-text-alt">Expiry of quotation, after which customer cannot sign or pay</span>
 								</label>
 							</div>
@@ -229,9 +285,10 @@ const isClosed = ['Closed', 'Cancelled'].includes(subscription?.status ?? '');
 							<div class="grid gap-5 sm:grid-cols-2">
 								<label class="form-control">
 									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Customer</span>
-									<select class="select select-bordered bg-base-100/80">
-										{customers.map((c) => (
-											<option selected={c === subscription.customer}>{c}</option>
+									<select class="select select-bordered bg-base-100/80" id="customerId" name="customerId">
+										<option value="" disabled>Select customer...</option>
+										{customers.map((c: any) => (
+											<option value={c.id} selected={c.id === subscription.customerId}>{c.name}</option>
 										))}
 										<option disabled>──────────</option>
 										<option value="new">+ Create new customer</option>
@@ -240,7 +297,7 @@ const isClosed = ['Closed', 'Cancelled'].includes(subscription?.status ?? '');
 
 								<label class="form-control">
 									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Order Date</span>
-									<input type="date" value={subscription.orderDate} class="input input-bordered bg-base-100/80" />
+									<input type="date" value={subscription.orderDate} class="input input-bordered bg-base-100/80" id="startDate" name="startDate" />
 								</label>
 							</div>
 
@@ -251,16 +308,17 @@ const isClosed = ['Closed', 'Cancelled'].includes(subscription?.status ?? '');
 									<select class="select select-bordered bg-base-100/80">
 										<option value="">Select template...</option>
 										{quotationTemplates.map((t) => (
-											<option selected={t === subscription.quotationTemplate}>{t}</option>
+											<option>{t}</option>
 										))}
 									</select>
 								</label>
 
 								<label class="form-control">
 									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Recurring Plan</span>
-									<select class="select select-bordered bg-base-100/80">
-										{recurringPlans.map((p) => (
-											<option selected={p === subscription.plan}>{p}</option>
+									<select class="select select-bordered bg-base-100/80" id="planId" name="planId">
+										<option value="">No Plan</option>
+										{recurringPlans.map((p: any) => (
+											<option value={p.id} selected={p.id === subscription.planId}>{p.planName} ({p.billingPeriod})</option>
 										))}
 									</select>
 								</label>
@@ -272,7 +330,7 @@ const isClosed = ['Closed', 'Cancelled'].includes(subscription?.status ?? '');
 
 								<label class="form-control">
 									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Payment Term</span>
-									<select class="select select-bordered bg-base-100/80">
+									<select class="select select-bordered bg-base-100/80" id="paymentTerms" name="paymentTerms">
 										{paymentTerms.map((t) => (
 											<option selected={t === subscription.paymentTerm}>{t}</option>
 										))}
@@ -417,7 +475,7 @@ const isClosed = ['Closed', 'Cancelled'].includes(subscription?.status ?? '');
 							<div class="p-5 grid gap-5">
 								<label class="form-control">
 									<span class="label-text text-xs uppercase tracking-widest text-base-content/60">Internal Notes</span>
-									<textarea class="textarea textarea-bordered bg-base-100/80 h-32" placeholder="Add internal notes about this subscription...">{subscription.notes}</textarea>
+									<textarea class="textarea textarea-bordered bg-base-100/80 h-32" name="notes" placeholder="Add internal notes about this subscription...">{subscription.notes}</textarea>
 								</label>
 
 								<div class="grid gap-5 sm:grid-cols-2">
@@ -438,13 +496,17 @@ const isClosed = ['Closed', 'Cancelled'].includes(subscription?.status ?? '');
 					<!-- Action buttons -->
 					<div class="flex items-center justify-end gap-3 pt-2">
 						<a href="/admin/subscriptions" class="btn btn-ghost btn-sm">Cancel</a>
-						<button class="btn btn-primary btn-sm">
-							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-								<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-							</svg>
-							Save changes
+						<button type="submit" class="btn btn-primary btn-sm" :disabled="saving">
+							<span x-show="!saving" class="flex items-center gap-2">
+								<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+								</svg>
+								Save changes
+							</span>
+							<span x-show="saving" class="loading loading-spinner loading-xs"></span>
 						</button>
 					</div>
+					</form>
 				</div>
 			</div>
 		)
